@@ -1,6 +1,18 @@
 import * as core from '@actions/core';
 import { exec } from '@actions/exec';
+import * as path from 'path';
 import { TagOperationResult } from './types';
+
+/**
+ * Gets the working directory for git commands
+ * Uses GIT_WORKING_DIRECTORY env var if set (for tests), otherwise uses process.cwd()
+ * Always returns an absolute path (required by @actions/exec)
+ */
+function getGitWorkingDirectory(): string {
+  const cwd = process.env.GIT_WORKING_DIRECTORY || process.cwd();
+  // Ensure we return an absolute path (required by @actions/exec)
+  return path.isAbsolute(cwd) ? cwd : path.resolve(cwd);
+}
 
 /**
  * Gets the commit SHA for a given reference (tag, branch, or SHA)
@@ -12,13 +24,18 @@ export async function getCommitSha(
   core.info(`Resolving commit SHA for reference: ${ref}`);
 
   let output = '';
+  const cwd = getGitWorkingDirectory();
+  if (verbose) {
+    core.debug(`Using git working directory: ${cwd}`);
+  }
   const options = {
     listeners: {
       stdout: (data: Buffer) => {
         output += data.toString();
       }
     },
-    silent: !verbose
+    silent: !verbose,
+    cwd
   };
 
   try {
@@ -51,9 +68,11 @@ export async function tagExists(tagName: string, verbose: boolean): Promise<bool
   }
 
   try {
+    const cwd = getGitWorkingDirectory();
     const exitCode = await exec('git', ['rev-parse', `refs/tags/${tagName}`], {
       silent: true,
-      ignoreReturnCode: true
+      ignoreReturnCode: true,
+      cwd
     });
     return exitCode === 0;
   } catch {
@@ -78,8 +97,10 @@ export async function createOrUpdateTag(
     }
 
     // Force update existing tag
+    const cwd = getGitWorkingDirectory();
     await exec('git', ['tag', '-f', tagName, commitSha], {
-      silent: !verbose
+      silent: !verbose,
+      cwd
     });
 
     return {
@@ -95,8 +116,10 @@ export async function createOrUpdateTag(
     }
 
     // Create new tag
+    const cwd = getGitWorkingDirectory();
     await exec('git', ['tag', tagName, commitSha], {
-      silent: !verbose
+      silent: !verbose,
+      cwd
     });
 
     return {
@@ -129,8 +152,10 @@ export async function pushTag(
   }
 
   try {
+    const cwd = getGitWorkingDirectory();
     await exec('git', args, {
-      silent: !verbose
+      silent: !verbose,
+      cwd
     });
     core.info(`Successfully pushed tag ${tagName} to remote`);
   } catch (error) {

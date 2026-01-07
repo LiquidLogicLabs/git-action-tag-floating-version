@@ -25689,19 +25689,35 @@ exports.pushTag = pushTag;
 exports.verifyTag = verifyTag;
 const core = __importStar(__nccwpck_require__(7484));
 const exec_1 = __nccwpck_require__(5236);
+const path = __importStar(__nccwpck_require__(6928));
+/**
+ * Gets the working directory for git commands
+ * Uses GIT_WORKING_DIRECTORY env var if set (for tests), otherwise uses process.cwd()
+ * Always returns an absolute path (required by @actions/exec)
+ */
+function getGitWorkingDirectory() {
+    const cwd = process.env.GIT_WORKING_DIRECTORY || process.cwd();
+    // Ensure we return an absolute path (required by @actions/exec)
+    return path.isAbsolute(cwd) ? cwd : path.resolve(cwd);
+}
 /**
  * Gets the commit SHA for a given reference (tag, branch, or SHA)
  */
 async function getCommitSha(ref, verbose) {
     core.info(`Resolving commit SHA for reference: ${ref}`);
     let output = '';
+    const cwd = getGitWorkingDirectory();
+    if (verbose) {
+        core.debug(`Using git working directory: ${cwd}`);
+    }
     const options = {
         listeners: {
             stdout: (data) => {
                 output += data.toString();
             }
         },
-        silent: !verbose
+        silent: !verbose,
+        cwd
     };
     try {
         await (0, exec_1.exec)('git', ['rev-parse', ref], options);
@@ -25728,9 +25744,11 @@ async function tagExists(tagName, verbose) {
         core.debug(`Checking if tag exists: ${tagName}`);
     }
     try {
+        const cwd = getGitWorkingDirectory();
         const exitCode = await (0, exec_1.exec)('git', ['rev-parse', `refs/tags/${tagName}`], {
             silent: true,
-            ignoreReturnCode: true
+            ignoreReturnCode: true,
+            cwd
         });
         return exitCode === 0;
     }
@@ -25749,8 +25767,10 @@ async function createOrUpdateTag(tagName, commitSha, verbose) {
             core.debug(`Using git tag -f to force update tag ${tagName}`);
         }
         // Force update existing tag
+        const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)('git', ['tag', '-f', tagName, commitSha], {
-            silent: !verbose
+            silent: !verbose,
+            cwd
         });
         return {
             tagName,
@@ -25765,8 +25785,10 @@ async function createOrUpdateTag(tagName, commitSha, verbose) {
             core.debug(`Using git tag to create new tag ${tagName}`);
         }
         // Create new tag
+        const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)('git', ['tag', tagName, commitSha], {
-            silent: !verbose
+            silent: !verbose,
+            cwd
         });
         return {
             tagName,
@@ -25790,8 +25812,10 @@ async function pushTag(tagName, force, verbose) {
         core.debug(`Executing: git ${args.join(' ')}`);
     }
     try {
+        const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)('git', args, {
-            silent: !verbose
+            silent: !verbose,
+            cwd
         });
         core.info(`Successfully pushed tag ${tagName} to remote`);
     }
@@ -26034,8 +26058,20 @@ function parseVersion(tag, verbose) {
         tagName = tagName.substring(1);
     }
     // Parse semantic version: major.minor.patch[-prerelease][+build]
-    const versionRegex = /^(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+(.+))?$/;
-    const match = tagName.match(versionRegex);
+    // First try standard format
+    let versionRegex = /^(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+(.+))?$/;
+    let match = tagName.match(versionRegex);
+    // If that fails, try to handle custom prefixes by extracting version part
+    if (!match) {
+        // Try to match version pattern anywhere in the string (for custom prefixes like "release-5.1.0")
+        const flexibleVersionRegex = /(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+(.+))?$/;
+        match = tagName.match(flexibleVersionRegex);
+        if (match) {
+            // Found version pattern, use it (match groups are offset by 1 due to full match)
+            const versionMatch = [match[0], match[1], match[2], match[3], match[4], match[5]];
+            match = versionMatch;
+        }
+    }
     if (!match) {
         throw new Error(`Invalid semantic version format: ${tag}. Expected format: v1.2.3 or 1.2.3 (with optional prerelease/build)`);
     }

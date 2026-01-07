@@ -40,19 +40,35 @@ exports.pushTag = pushTag;
 exports.verifyTag = verifyTag;
 const core = __importStar(require("@actions/core"));
 const exec_1 = require("@actions/exec");
+const path = __importStar(require("path"));
+/**
+ * Gets the working directory for git commands
+ * Uses GIT_WORKING_DIRECTORY env var if set (for tests), otherwise uses process.cwd()
+ * Always returns an absolute path (required by @actions/exec)
+ */
+function getGitWorkingDirectory() {
+    const cwd = process.env.GIT_WORKING_DIRECTORY || process.cwd();
+    // Ensure we return an absolute path (required by @actions/exec)
+    return path.isAbsolute(cwd) ? cwd : path.resolve(cwd);
+}
 /**
  * Gets the commit SHA for a given reference (tag, branch, or SHA)
  */
 async function getCommitSha(ref, verbose) {
     core.info(`Resolving commit SHA for reference: ${ref}`);
     let output = '';
+    const cwd = getGitWorkingDirectory();
+    if (verbose) {
+        core.debug(`Using git working directory: ${cwd}`);
+    }
     const options = {
         listeners: {
             stdout: (data) => {
                 output += data.toString();
             }
         },
-        silent: !verbose
+        silent: !verbose,
+        cwd
     };
     try {
         await (0, exec_1.exec)('git', ['rev-parse', ref], options);
@@ -79,9 +95,11 @@ async function tagExists(tagName, verbose) {
         core.debug(`Checking if tag exists: ${tagName}`);
     }
     try {
+        const cwd = getGitWorkingDirectory();
         const exitCode = await (0, exec_1.exec)('git', ['rev-parse', `refs/tags/${tagName}`], {
             silent: true,
-            ignoreReturnCode: true
+            ignoreReturnCode: true,
+            cwd
         });
         return exitCode === 0;
     }
@@ -100,8 +118,10 @@ async function createOrUpdateTag(tagName, commitSha, verbose) {
             core.debug(`Using git tag -f to force update tag ${tagName}`);
         }
         // Force update existing tag
+        const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)('git', ['tag', '-f', tagName, commitSha], {
-            silent: !verbose
+            silent: !verbose,
+            cwd
         });
         return {
             tagName,
@@ -116,8 +136,10 @@ async function createOrUpdateTag(tagName, commitSha, verbose) {
             core.debug(`Using git tag to create new tag ${tagName}`);
         }
         // Create new tag
+        const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)('git', ['tag', tagName, commitSha], {
-            silent: !verbose
+            silent: !verbose,
+            cwd
         });
         return {
             tagName,
@@ -141,8 +163,10 @@ async function pushTag(tagName, force, verbose) {
         core.debug(`Executing: git ${args.join(' ')}`);
     }
     try {
+        const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)('git', args, {
-            silent: !verbose
+            silent: !verbose,
+            cwd
         });
         core.info(`Successfully pushed tag ${tagName} to remote`);
     }

@@ -51,8 +51,20 @@ function parseVersion(tag, verbose) {
         tagName = tagName.substring(1);
     }
     // Parse semantic version: major.minor.patch[-prerelease][+build]
-    const versionRegex = /^(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+(.+))?$/;
-    const match = tagName.match(versionRegex);
+    // First try standard format
+    let versionRegex = /^(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+(.+))?$/;
+    let match = tagName.match(versionRegex);
+    // If that fails, try to handle custom prefixes by extracting version part
+    if (!match) {
+        // Try to match version pattern anywhere in the string (for custom prefixes like "release-5.1.0")
+        const flexibleVersionRegex = /(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+(.+))?$/;
+        match = tagName.match(flexibleVersionRegex);
+        if (match) {
+            // Found version pattern, use it (match groups are offset by 1 due to full match)
+            const versionMatch = [match[0], match[1], match[2], match[3], match[4], match[5]];
+            match = versionMatch;
+        }
+    }
     if (!match) {
         throw new Error(`Invalid semantic version format: ${tag}. Expected format: v1.2.3 or 1.2.3 (with optional prerelease/build)`);
     }
