@@ -7,7 +7,7 @@ on:
     branches: ['**']
 
 permissions:
-  contents: read
+  contents: write  # Required for test workflow to push tags
   pull-requests: read
 
 jobs:
@@ -44,4 +44,6 @@ jobs:
   test:
     if: github.ref_type != 'tag'  # Skip CI on tag pushes (handled by release workflow)
     uses: ./.github/workflows/test.yml
+    permissions:
+      contents: write  # Required to push tags in integration tests
 
