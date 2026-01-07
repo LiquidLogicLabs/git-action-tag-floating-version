@@ -130,6 +130,9 @@ jobs:
       - name: Test - Prerelease skipping
         run: |
           echo "🔍 Test 4: Prerelease skipping"
+          # Clean up any existing v4 tag from previous runs
+          git tag -d v4 2>/dev/null || true
+          git push origin :refs/tags/v4 2>/dev/null || true
           # Create a prerelease tag
           git tag -a v4.0.0-beta.1 -m "Test prerelease tag" || true
           git push origin v4.0.0-beta.1 || true
@@ -143,12 +146,19 @@ jobs:
 
       - name: Verify prerelease was skipped
         run: |
-          # Check if v4 tag exists (should not)
-          MAJOR_TAG=$(git rev-parse refs/tags/v4 2>/dev/null || echo "not found")
-          if [ "$MAJOR_TAG" = "not found" ]; then
+          # Fetch all tags from remote to check remote state
+          git fetch origin --tags || true
+          # Check if v4 tag exists remotely (should not)
+          REMOTE_TAG=$(git ls-remote --tags origin refs/tags/v4 2>/dev/null | head -1 | awk '{print $2}' || echo "")
+          # Also check local tag
+          LOCAL_TAG=$(git rev-parse refs/tags/v4 2>/dev/null || echo "not found")
+          
+          if [ -z "$REMOTE_TAG" ] && [ "$LOCAL_TAG" = "not found" ]; then
             echo "✅ Prerelease version correctly skipped (no v4 tag created)"
           else
             echo "❌ Prerelease version should have been skipped but v4 tag exists"
+            echo "Remote tag: ${REMOTE_TAG:-none}"
+            echo "Local tag: ${LOCAL_TAG:-none}"
             exit 1
           fi
 
