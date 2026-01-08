@@ -319,6 +319,42 @@ describe("Integration Tests", () => {
 		console.log("✅ Prerelease version correctly skipped (no v4 tag created)");
 	});
 
+	test("Test 4b: Prerelease with separate refTag (should allow)", async () => {
+		console.log("\n🔍 Test 4b: Prerelease with separate refTag");
+
+		// Setup - create a non-prerelease refTag
+		const refTagName = "3.23-d34fa4d2-ls4";
+		await createTestTag(refTagName);
+
+		// Use a prerelease tag for version extraction
+		const prereleaseTagName = "3.23.0-d34fa4d2.ls4";
+
+		// Run action - should succeed because refTag is provided separately
+		process.env.INPUT_TAG = prereleaseTagName;
+		process.env.INPUT_REFTAG = refTagName;
+		process.env.INPUT_UPDATEMINOR = "true";
+		process.env.INPUT_IGNOREPRERELEASE = "true"; // Even with ignorePrerelease=true, should work with separate refTag
+
+		// Clear mock before running
+		mockSetFailed.mockClear();
+
+		// Run action - should NOT fail
+		await runAction();
+
+		// Verify setFailed was NOT called
+		expect(mockSetFailed).not.toHaveBeenCalled();
+
+		// Verify tags exist locally
+		const majorSha = getTagSha("v3");
+		const minorSha = getTagSha("v3.23");
+		const refTagSha = getTagSha(refTagName);
+
+		expect(majorSha).toBe(refTagSha);
+		expect(minorSha).toBe(refTagSha);
+
+		console.log("✅ Prerelease tag used for version extraction with separate refTag (v3 and v3.23 created)");
+	});
+
 	test("Test 5: Custom prefix", async () => {
 		console.log("\n🔍 Test 5: Custom prefix");
 

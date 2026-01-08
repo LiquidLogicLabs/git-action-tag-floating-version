@@ -43,26 +43,40 @@ export async function run(): Promise<void> {
 		core.debug(`  ignorePrerelease: ${inputs.ignorePrerelease}`);
 		core.debug(`  verbose: ${inputs.verbose}`);
 
-		if (refTag !== tag) {
-			core.info(`Using refTag "${refTag}" (different from version tag "${tag}")`);
+		// Determine if we're using a separate refTag for commit resolution
+		// IMPORTANT: refTag is ONLY used to find the commit SHA - it is NEVER parsed for version information
+		const usingSeparateRefTag = refTagInput && refTagInput !== tag;
+
+		if (usingSeparateRefTag) {
+			core.info(`Using refTag "${refTag}" to find commit SHA (different from version tag "${tag}")`);
+			core.debug(`refTag will be used ONLY to resolve commit SHA (not parsed for version)`);
 		}
 
-		// Extract version information from tag
+		// Extract version information from tag ONLY
+		// NOTE: We parse tag for version info, NOT refTag. refTag is only used to find the commit.
 		core.info(`Extracting version from tag: ${tag}`);
 		const versionInfo = parseVersion(tag, verbose);
 
 		// Check for prerelease
-		if (versionInfo.isPrerelease && ignorePrerelease) {
+		// Only apply prerelease check if we're using the same tag for both version extraction and commit reference
+		// If refTag is provided separately, we allow prerelease tags for version extraction
+		if (versionInfo.isPrerelease && ignorePrerelease && !usingSeparateRefTag) {
 			core.warning(`Tag ${tag} is a prerelease version (${versionInfo.prerelease}). Skipping due to ignorePrerelease=true`);
 			core.setFailed(`Prerelease versions are ignored. Tag "${tag}" contains prerelease identifier "${versionInfo.prerelease}"`);
 			return;
 		}
 
 		if (versionInfo.isPrerelease) {
-			core.debug(`Prerelease version detected but proceeding (ignorePrerelease=false): ${versionInfo.prerelease}`);
+			if (usingSeparateRefTag) {
+				core.debug(`Prerelease version detected in tag "${tag}" but proceeding (using separate refTag "${refTag}" for commit reference): ${versionInfo.prerelease}`);
+			} else {
+				core.debug(`Prerelease version detected but proceeding (ignorePrerelease=false): ${versionInfo.prerelease}`);
+			}
 		}
 
 		// Get commit SHA for reference tag
+		// IMPORTANT: refTag is used ONLY to resolve the commit SHA (via git rev-parse)
+		// We do NOT parse refTag for version information - only tag is parsed for that
 		const commitSha = await getCommitSha(refTag, verbose);
 
 		// Show initial summary of what will be done
