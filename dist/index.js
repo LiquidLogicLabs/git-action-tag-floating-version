@@ -25703,18 +25703,18 @@ function getGitWorkingDirectory() {
 /**
  * Gets the commit SHA for a given reference (tag, branch, or SHA)
  */
-async function getCommitSha(ref, verbose) {
+async function getCommitSha(ref, logger) {
     core.info(`Resolving commit SHA for reference: ${ref}`);
     let output = "";
     const cwd = getGitWorkingDirectory();
-    core.debug(`Using git working directory: ${cwd}`);
+    logger.debug(`Using git working directory: ${cwd}`);
     const options = {
         listeners: {
             stdout: (data) => {
                 output += data.toString();
             },
         },
-        silent: !verbose,
+        silent: !logger.verbose,
         cwd,
     };
     try {
@@ -25723,7 +25723,10 @@ async function getCommitSha(ref, verbose) {
         if (!sha || sha.length !== 40) {
             throw new Error(`Invalid commit SHA resolved: ${sha}`);
         }
-        core.debug(`Resolved commit SHA: ${sha}`);
+        if (logger.verbose) {
+            core.info(`  → Resolved commit SHA: ${sha}`);
+        }
+        logger.debug(`Resolved commit SHA: ${sha}`);
         core.info(`Resolved commit SHA: ${sha.substring(0, 7)}...`);
         return sha;
     }
@@ -25735,8 +25738,8 @@ async function getCommitSha(ref, verbose) {
 /**
  * Checks if a tag exists locally
  */
-async function tagExists(tagName, verbose) {
-    core.debug(`Checking if tag exists: ${tagName}`);
+async function tagExists(tagName, logger) {
+    logger.debug(`Checking if tag exists: ${tagName}`);
     try {
         const cwd = getGitWorkingDirectory();
         const exitCode = await (0, exec_1.exec)("git", ["rev-parse", `refs/tags/${tagName}`], {
@@ -25753,15 +25756,18 @@ async function tagExists(tagName, verbose) {
 /**
  * Creates or updates a git tag
  */
-async function createOrUpdateTag(tagName, commitSha, verbose) {
-    const exists = await tagExists(tagName, verbose);
+async function createOrUpdateTag(tagName, commitSha, logger) {
+    const exists = await tagExists(tagName, logger);
     if (exists) {
         core.info(`Updating existing tag: ${tagName} -> ${commitSha.substring(0, 7)}`);
-        core.debug(`Using git tag -f to force update tag ${tagName}`);
+        if (logger.verbose) {
+            core.info(`  → Using git tag -f to force update tag ${tagName}`);
+        }
+        logger.debug(`Using git tag -f to force update tag ${tagName}`);
         // Force update existing tag
         const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)("git", ["tag", "-f", tagName, commitSha], {
-            silent: !verbose,
+            silent: !logger.verbose,
             cwd,
         });
         return {
@@ -25773,11 +25779,14 @@ async function createOrUpdateTag(tagName, commitSha, verbose) {
     }
     else {
         core.info(`Creating new tag: ${tagName} -> ${commitSha.substring(0, 7)}`);
-        core.debug(`Using git tag to create new tag ${tagName}`);
+        if (logger.verbose) {
+            core.info(`  → Using git tag to create new tag ${tagName}`);
+        }
+        logger.debug(`Using git tag to create new tag ${tagName}`);
         // Create new tag
         const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)("git", ["tag", tagName, commitSha], {
-            silent: !verbose,
+            silent: !logger.verbose,
             cwd,
         });
         return {
@@ -25791,18 +25800,21 @@ async function createOrUpdateTag(tagName, commitSha, verbose) {
 /**
  * Pushes a tag to the remote repository
  */
-async function pushTag(tagName, force, verbose) {
+async function pushTag(tagName, force, logger) {
     const action = force ? "force pushing" : "pushing";
     core.info(`${action} tag ${tagName} to remote`);
     const args = ["push", "origin", tagName];
     if (force) {
         args.push("--force");
     }
-    core.debug(`Executing: git ${args.join(" ")}`);
+    if (logger["verbose"]) { // Access private verbose property for special formatting
+        core.info(`  → Executing: git ${args.join(" ")}`);
+    }
+    logger.debug(`Executing: git ${args.join(" ")}`);
     try {
         const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)("git", args, {
-            silent: !verbose,
+            silent: !logger.verbose,
             cwd,
         });
         core.info(`Successfully pushed tag ${tagName} to remote`);
@@ -25815,12 +25827,18 @@ async function pushTag(tagName, force, verbose) {
 /**
  * Verifies that a tag points to the expected commit
  */
-async function verifyTag(tagName, expectedSha, verbose) {
-    core.debug(`Verifying tag ${tagName} points to ${expectedSha}`);
+async function verifyTag(tagName, expectedSha, logger) {
+    if (logger["verbose"]) { // Access private verbose property for special formatting
+        core.info(`  → Verifying tag ${tagName} points to ${expectedSha}`);
+    }
+    logger.debug(`Verifying tag ${tagName} points to ${expectedSha}`);
     try {
-        const actualSha = await getCommitSha(`refs/tags/${tagName}`, verbose);
+        const actualSha = await getCommitSha(`refs/tags/${tagName}`, logger);
         const matches = actualSha === expectedSha;
-        core.debug(`Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
+        if (logger.verbose) {
+            core.info(`  → Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
+        }
+        logger.debug(`Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
         return matches;
     }
     catch {
@@ -25874,6 +25892,7 @@ exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
 const version_1 = __nccwpck_require__(311);
 const git_1 = __nccwpck_require__(1243);
+const logger_1 = __nccwpck_require__(6999);
 /**
  * Main action entry point
  */
@@ -25887,7 +25906,8 @@ async function run() {
         const ignorePrerelease = core.getBooleanInput("ignorePrerelease");
         const verbose = core.getBooleanInput("verbose");
         // Set ACTIONS_STEP_DEBUG if verbose is enabled
-        // This enables all core.debug() calls to output automatically
+        // Note: This may not work if ACTIONS_STEP_DEBUG isn't set at workflow level
+        // For reliable verbose output, we use Logger which uses core.info() when verbose is true
         if (verbose) {
             process.env.ACTIONS_STEP_DEBUG = "true";
         }
@@ -25901,31 +25921,52 @@ async function run() {
             ignorePrerelease,
             verbose,
         };
-        core.debug("Verbose logging enabled");
-        core.debug("Action inputs:");
-        core.debug(`  tag: ${inputs.tag}`);
-        core.debug(`  refTag: ${inputs.refTag}`);
-        core.debug(`  prefix: ${inputs.prefix}`);
-        core.debug(`  updateMinor: ${inputs.updateMinor}`);
-        core.debug(`  ignorePrerelease: ${inputs.ignorePrerelease}`);
-        core.debug(`  verbose: ${inputs.verbose}`);
-        if (refTag !== tag) {
-            core.info(`Using refTag "${refTag}" (different from version tag "${tag}")`);
+        // Create logger instance
+        const logger = new logger_1.Logger(verbose);
+        if (verbose) {
+            logger.info("🔍 Verbose logging enabled");
         }
-        // Extract version information from tag
+        logger.debug("Action inputs:");
+        logger.debug(`  tag: ${inputs.tag}`);
+        logger.debug(`  refTag: ${inputs.refTag}`);
+        logger.debug(`  prefix: ${inputs.prefix}`);
+        logger.debug(`  updateMinor: ${inputs.updateMinor}`);
+        logger.debug(`  ignorePrerelease: ${inputs.ignorePrerelease}`);
+        logger.debug(`  verbose: ${inputs.verbose}`);
+        // Determine if we're using a separate refTag for commit resolution
+        // IMPORTANT: refTag is ONLY used to find the commit SHA - it is NEVER parsed for version information
+        const usingSeparateRefTag = refTagInput && refTagInput !== tag;
+        if (usingSeparateRefTag) {
+            core.info(`Using refTag "${refTag}" to find commit SHA (different from version tag "${tag}")`);
+            logger.debug(`refTag will be used ONLY to resolve commit SHA (not parsed for version)`);
+        }
+        // Extract version information from tag ONLY
+        // NOTE: We parse tag for version info, NOT refTag. refTag is only used to find the commit.
         core.info(`Extracting version from tag: ${tag}`);
-        const versionInfo = (0, version_1.parseVersion)(tag, verbose);
+        const versionInfo = (0, version_1.parseVersion)(tag, logger);
         // Check for prerelease
-        if (versionInfo.isPrerelease && ignorePrerelease) {
+        // Only apply prerelease check if we're using the same tag for both version extraction and commit reference
+        // If refTag is provided separately, we allow prerelease tags for version extraction
+        if (versionInfo.isPrerelease && ignorePrerelease && !usingSeparateRefTag) {
             core.warning(`Tag ${tag} is a prerelease version (${versionInfo.prerelease}). Skipping due to ignorePrerelease=true`);
             core.setFailed(`Prerelease versions are ignored. Tag "${tag}" contains prerelease identifier "${versionInfo.prerelease}"`);
             return;
         }
         if (versionInfo.isPrerelease) {
-            core.debug(`Prerelease version detected but proceeding (ignorePrerelease=false): ${versionInfo.prerelease}`);
+            if (usingSeparateRefTag) {
+                if (logger.verbose) {
+                    logger.info(`ℹ️  Prerelease version detected in tag "${tag}" but proceeding (using separate refTag "${refTag}" for commit reference): ${versionInfo.prerelease}`);
+                }
+                logger.debug(`Prerelease version detected in tag "${tag}" but proceeding (using separate refTag "${refTag}" for commit reference): ${versionInfo.prerelease}`);
+            }
+            else {
+                logger.debug(`Prerelease version detected but proceeding (ignorePrerelease=false): ${versionInfo.prerelease}`);
+            }
         }
         // Get commit SHA for reference tag
-        const commitSha = await (0, git_1.getCommitSha)(refTag, verbose);
+        // IMPORTANT: refTag is used ONLY to resolve the commit SHA (via git rev-parse)
+        // We do NOT parse refTag for version information - only tag is parsed for that
+        const commitSha = await (0, git_1.getCommitSha)(refTag, logger);
         // Show initial summary of what will be done
         const majorTagName = (0, version_1.createTagName)(prefix, versionInfo.major);
         core.info(`📋 Plan: Will create/update floating tags pointing to commit ${commitSha.substring(0, 7)}`);
@@ -25936,12 +25977,12 @@ async function run() {
         }
         // Create/update major version tag
         core.info(`Creating/updating major tag: ${majorTagName}`);
-        const majorTagResult = await (0, git_1.createOrUpdateTag)(majorTagName, commitSha, verbose);
+        const majorTagResult = await (0, git_1.createOrUpdateTag)(majorTagName, commitSha, logger);
         // Push major tag
-        await (0, git_1.pushTag)(majorTagName, majorTagResult.updated, verbose);
+        await (0, git_1.pushTag)(majorTagName, majorTagResult.updated, logger);
         // Verify major tag (only in verbose mode to avoid unnecessary git calls)
-        if (verbose) {
-            const verified = await (0, git_1.verifyTag)(majorTagName, commitSha, verbose);
+        if (logger.verbose) {
+            const verified = await (0, git_1.verifyTag)(majorTagName, commitSha, logger);
             if (!verified) {
                 core.warning(`Tag ${majorTagName} verification failed`);
             }
@@ -25949,19 +25990,17 @@ async function run() {
         // Set major tag output
         core.setOutput("majorTag", majorTagName);
         // Track results for final summary
-        const results = [
-            { tag: majorTagName, created: majorTagResult.created, updated: majorTagResult.updated }
-        ];
+        const results = [{ tag: majorTagName, created: majorTagResult.created, updated: majorTagResult.updated }];
         // Create/update minor version tag if requested
         if (updateMinor) {
             const minorTagName = (0, version_1.createTagName)(prefix, versionInfo.major, versionInfo.minor);
             core.info(`Creating/updating minor tag: ${minorTagName}`);
-            const minorTagResult = await (0, git_1.createOrUpdateTag)(minorTagName, commitSha, verbose);
+            const minorTagResult = await (0, git_1.createOrUpdateTag)(minorTagName, commitSha, logger);
             // Push minor tag
-            await (0, git_1.pushTag)(minorTagName, minorTagResult.updated, verbose);
+            await (0, git_1.pushTag)(minorTagName, minorTagResult.updated, logger);
             // Verify minor tag (only in verbose mode to avoid unnecessary git calls)
-            if (verbose) {
-                const verified = await (0, git_1.verifyTag)(minorTagName, commitSha, verbose);
+            if (logger.verbose) {
+                const verified = await (0, git_1.verifyTag)(minorTagName, commitSha, logger);
                 if (!verified) {
                     core.warning(`Tag ${minorTagName} verification failed`);
                 }
@@ -25981,7 +26020,7 @@ async function run() {
                 core.info(`   ↻ Updated: ${result.tag}`);
             }
         }
-        core.debug("Action completed successfully");
+        logger.debug("Action completed successfully");
     }
     catch (error) {
         if (error instanceof Error) {
@@ -25999,6 +26038,92 @@ async function run() {
 if (require.main === require.cache[eval('__filename')]) {
     run();
 }
+
+
+/***/ }),
+
+/***/ 6999:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Logger = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+/**
+ * Logger utility with verbose/debug support
+ * Provides consistent logging across the action
+ */
+class Logger {
+    verbose;
+    constructor(verbose = false) {
+        this.verbose = verbose;
+    }
+    /**
+     * Log an info message
+     */
+    info(message) {
+        core.info(message);
+    }
+    /**
+     * Log a warning message
+     */
+    warning(message) {
+        core.warning(message);
+    }
+    /**
+     * Log an error message
+     */
+    error(message) {
+        core.error(message);
+    }
+    /**
+     * Log a debug message - uses core.info() when verbose is true so it always shows
+     * Falls back to core.debug() when verbose is false (for when ACTIONS_STEP_DEBUG is set at workflow level)
+     */
+    debug(message) {
+        if (this.verbose) {
+            core.info(`[DEBUG] ${message}`);
+        }
+        else {
+            core.debug(message);
+        }
+    }
+}
+exports.Logger = Logger;
 
 
 /***/ }),
@@ -26049,14 +26174,20 @@ const core = __importStar(__nccwpck_require__(7484));
  * Extracts version information from a tag name
  * Supports tags with or without 'v' prefix (e.g., 'v1.2.3' or '1.2.3')
  */
-function parseVersion(tag, verbose) {
-    core.debug(`Parsing version from tag: ${tag}`);
+function parseVersion(tag, logger) {
+    if (logger["verbose"]) { // Access private verbose property for special formatting
+        core.info(`  → Parsing version from tag: ${tag}`);
+    }
+    logger.debug(`Parsing version from tag: ${tag}`);
     // Remove 'refs/tags/' prefix if present
     let tagName = tag.replace(/^refs\/tags\//, "");
     // Auto-detect and handle 'v' prefix
     const hasVPrefix = tagName.startsWith("v");
     if (hasVPrefix) {
-        core.debug(`Detected 'v' prefix, will strip for parsing`);
+        if (logger.verbose) {
+            core.info(`  → Detected 'v' prefix, will strip for parsing`);
+        }
+        logger.debug(`Detected 'v' prefix, will strip for parsing`);
         tagName = tagName.substring(1);
     }
     // Parse semantic version: major.minor.patch[-prerelease][+build]
@@ -26069,7 +26200,10 @@ function parseVersion(tag, verbose) {
         versionRegex = /(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+(.+))?$/;
         match = tagName.match(versionRegex);
         if (match) {
-            core.debug(`Extracted version from custom prefix tag: ${match[0]}`);
+            if (logger.verbose) {
+                core.info(`  → Extracted version from custom prefix tag: ${match[0]}`);
+            }
+            logger.debug(`Extracted version from custom prefix tag: ${match[0]}`);
         }
     }
     if (!match) {
@@ -26090,13 +26224,24 @@ function parseVersion(tag, verbose) {
         prerelease,
         build,
     };
-    core.debug(`Parsed version components:`);
-    core.debug(`  Major: ${major}`);
-    core.debug(`  Minor: ${minor}`);
-    core.debug(`  Patch: ${patch}`);
-    core.debug(`  Prerelease: ${prerelease || "none"}`);
-    core.debug(`  Build: ${build || "none"}`);
-    core.debug(`  Is Prerelease: ${isPrerelease}`);
+    if (logger["verbose"]) { // Access private verbose property for special formatting
+        core.info(`  → Parsed version components:`);
+        core.info(`    Major: ${major}`);
+        core.info(`    Minor: ${minor}`);
+        core.info(`    Patch: ${patch}`);
+        core.info(`    Prerelease: ${prerelease || "none"}`);
+        core.info(`    Build: ${build || "none"}`);
+        core.info(`    Is Prerelease: ${isPrerelease}`);
+    }
+    else {
+        logger.debug(`Parsed version components:`);
+        logger.debug(`  Major: ${major}`);
+        logger.debug(`  Minor: ${minor}`);
+        logger.debug(`  Patch: ${patch}`);
+        logger.debug(`  Prerelease: ${prerelease || "none"}`);
+        logger.debug(`  Build: ${build || "none"}`);
+        logger.debug(`  Is Prerelease: ${isPrerelease}`);
+    }
     return versionInfo;
 }
 /**

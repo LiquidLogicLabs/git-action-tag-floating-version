@@ -1,4 +1,5 @@
 import { parseVersion, createTagName } from '../version';
+import { Logger } from '../logger';
 
 // Mock @actions/core
 jest.mock('@actions/core', () => ({
@@ -9,9 +10,11 @@ jest.mock('@actions/core', () => ({
 }));
 
 describe('parseVersion', () => {
+  const logger = new Logger(false);
+
   describe('tags with v prefix', () => {
     it('should parse v1.2.3 correctly', () => {
-      const result = parseVersion('v1.2.3', false);
+      const result = parseVersion('v1.2.3', logger);
       expect(result.major).toBe(1);
       expect(result.minor).toBe(2);
       expect(result.patch).toBe(3);
@@ -20,7 +23,7 @@ describe('parseVersion', () => {
     });
 
     it('should parse v2.0.0 correctly', () => {
-      const result = parseVersion('v2.0.0', false);
+      const result = parseVersion('v2.0.0', logger);
       expect(result.major).toBe(2);
       expect(result.minor).toBe(0);
       expect(result.patch).toBe(0);
@@ -28,7 +31,7 @@ describe('parseVersion', () => {
     });
 
     it('should parse v10.20.30 correctly', () => {
-      const result = parseVersion('v10.20.30', false);
+      const result = parseVersion('v10.20.30', logger);
       expect(result.major).toBe(10);
       expect(result.minor).toBe(20);
       expect(result.patch).toBe(30);
@@ -37,7 +40,7 @@ describe('parseVersion', () => {
 
   describe('tags without v prefix', () => {
     it('should parse 1.2.3 correctly', () => {
-      const result = parseVersion('1.2.3', false);
+      const result = parseVersion('1.2.3', logger);
       expect(result.major).toBe(1);
       expect(result.minor).toBe(2);
       expect(result.patch).toBe(3);
@@ -46,7 +49,7 @@ describe('parseVersion', () => {
     });
 
     it('should parse 2.0.0 correctly', () => {
-      const result = parseVersion('2.0.0', false);
+      const result = parseVersion('2.0.0', logger);
       expect(result.major).toBe(2);
       expect(result.minor).toBe(0);
       expect(result.patch).toBe(0);
@@ -55,7 +58,7 @@ describe('parseVersion', () => {
 
   describe('tags with refs/tags/ prefix', () => {
     it('should parse refs/tags/v1.2.3 correctly', () => {
-      const result = parseVersion('refs/tags/v1.2.3', false);
+      const result = parseVersion('refs/tags/v1.2.3', logger);
       expect(result.major).toBe(1);
       expect(result.minor).toBe(2);
       expect(result.patch).toBe(3);
@@ -63,7 +66,7 @@ describe('parseVersion', () => {
     });
 
     it('should parse refs/tags/1.2.3 correctly', () => {
-      const result = parseVersion('refs/tags/1.2.3', false);
+      const result = parseVersion('refs/tags/1.2.3', logger);
       expect(result.major).toBe(1);
       expect(result.minor).toBe(2);
       expect(result.patch).toBe(3);
@@ -72,7 +75,7 @@ describe('parseVersion', () => {
 
   describe('prerelease versions', () => {
     it('should detect prerelease with v prefix', () => {
-      const result = parseVersion('v1.2.3-beta.1', false);
+      const result = parseVersion('v1.2.3-beta.1', logger);
       expect(result.isPrerelease).toBe(true);
       expect(result.prerelease).toBe('beta.1');
       expect(result.major).toBe(1);
@@ -81,13 +84,13 @@ describe('parseVersion', () => {
     });
 
     it('should detect prerelease without v prefix', () => {
-      const result = parseVersion('1.2.3-alpha', false);
+      const result = parseVersion('1.2.3-alpha', logger);
       expect(result.isPrerelease).toBe(true);
       expect(result.prerelease).toBe('alpha');
     });
 
     it('should detect prerelease with multiple segments', () => {
-      const result = parseVersion('v2.0.0-rc.1.2', false);
+      const result = parseVersion('v2.0.0-rc.1.2', logger);
       expect(result.isPrerelease).toBe(true);
       expect(result.prerelease).toBe('rc.1.2');
     });
@@ -95,7 +98,7 @@ describe('parseVersion', () => {
 
   describe('build metadata', () => {
     it('should parse version with build metadata', () => {
-      const result = parseVersion('v1.2.3+build.123', false);
+      const result = parseVersion('v1.2.3+build.123', logger);
       expect(result.major).toBe(1);
       expect(result.minor).toBe(2);
       expect(result.patch).toBe(3);
@@ -104,7 +107,7 @@ describe('parseVersion', () => {
     });
 
     it('should parse prerelease with build metadata', () => {
-      const result = parseVersion('v1.2.3-beta.1+build.456', false);
+      const result = parseVersion('v1.2.3-beta.1+build.456', logger);
       expect(result.isPrerelease).toBe(true);
       expect(result.prerelease).toBe('beta.1');
       expect(result.build).toBe('build.456');
@@ -113,19 +116,19 @@ describe('parseVersion', () => {
 
   describe('invalid versions', () => {
     it('should throw error for invalid format', () => {
-      expect(() => parseVersion('invalid', false)).toThrow(
+      expect(() => parseVersion('invalid', logger)).toThrow(
         'Invalid semantic version format'
       );
     });
 
     it('should throw error for missing patch version', () => {
-      expect(() => parseVersion('v1.2', false)).toThrow(
+      expect(() => parseVersion('v1.2', logger)).toThrow(
         'Invalid semantic version format'
       );
     });
 
     it('should throw error for non-numeric versions', () => {
-      expect(() => parseVersion('v1.2.x', false)).toThrow(
+      expect(() => parseVersion('v1.2.x', logger)).toThrow(
         'Invalid semantic version format'
       );
     });

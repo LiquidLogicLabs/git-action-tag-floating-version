@@ -54,18 +54,18 @@ function getGitWorkingDirectory() {
 /**
  * Gets the commit SHA for a given reference (tag, branch, or SHA)
  */
-async function getCommitSha(ref, verbose) {
+async function getCommitSha(ref, logger) {
     core.info(`Resolving commit SHA for reference: ${ref}`);
     let output = "";
     const cwd = getGitWorkingDirectory();
-    core.debug(`Using git working directory: ${cwd}`);
+    logger.debug(`Using git working directory: ${cwd}`);
     const options = {
         listeners: {
             stdout: (data) => {
                 output += data.toString();
             },
         },
-        silent: !verbose,
+        silent: !logger.verbose,
         cwd,
     };
     try {
@@ -74,7 +74,10 @@ async function getCommitSha(ref, verbose) {
         if (!sha || sha.length !== 40) {
             throw new Error(`Invalid commit SHA resolved: ${sha}`);
         }
-        core.debug(`Resolved commit SHA: ${sha}`);
+        if (logger.verbose) {
+            core.info(`  → Resolved commit SHA: ${sha}`);
+        }
+        logger.debug(`Resolved commit SHA: ${sha}`);
         core.info(`Resolved commit SHA: ${sha.substring(0, 7)}...`);
         return sha;
     }
@@ -86,8 +89,8 @@ async function getCommitSha(ref, verbose) {
 /**
  * Checks if a tag exists locally
  */
-async function tagExists(tagName, verbose) {
-    core.debug(`Checking if tag exists: ${tagName}`);
+async function tagExists(tagName, logger) {
+    logger.debug(`Checking if tag exists: ${tagName}`);
     try {
         const cwd = getGitWorkingDirectory();
         const exitCode = await (0, exec_1.exec)("git", ["rev-parse", `refs/tags/${tagName}`], {
@@ -104,15 +107,18 @@ async function tagExists(tagName, verbose) {
 /**
  * Creates or updates a git tag
  */
-async function createOrUpdateTag(tagName, commitSha, verbose) {
-    const exists = await tagExists(tagName, verbose);
+async function createOrUpdateTag(tagName, commitSha, logger) {
+    const exists = await tagExists(tagName, logger);
     if (exists) {
         core.info(`Updating existing tag: ${tagName} -> ${commitSha.substring(0, 7)}`);
-        core.debug(`Using git tag -f to force update tag ${tagName}`);
+        if (logger.verbose) {
+            core.info(`  → Using git tag -f to force update tag ${tagName}`);
+        }
+        logger.debug(`Using git tag -f to force update tag ${tagName}`);
         // Force update existing tag
         const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)("git", ["tag", "-f", tagName, commitSha], {
-            silent: !verbose,
+            silent: !logger.verbose,
             cwd,
         });
         return {
@@ -124,11 +130,14 @@ async function createOrUpdateTag(tagName, commitSha, verbose) {
     }
     else {
         core.info(`Creating new tag: ${tagName} -> ${commitSha.substring(0, 7)}`);
-        core.debug(`Using git tag to create new tag ${tagName}`);
+        if (logger.verbose) {
+            core.info(`  → Using git tag to create new tag ${tagName}`);
+        }
+        logger.debug(`Using git tag to create new tag ${tagName}`);
         // Create new tag
         const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)("git", ["tag", tagName, commitSha], {
-            silent: !verbose,
+            silent: !logger.verbose,
             cwd,
         });
         return {
@@ -142,18 +151,21 @@ async function createOrUpdateTag(tagName, commitSha, verbose) {
 /**
  * Pushes a tag to the remote repository
  */
-async function pushTag(tagName, force, verbose) {
+async function pushTag(tagName, force, logger) {
     const action = force ? "force pushing" : "pushing";
     core.info(`${action} tag ${tagName} to remote`);
     const args = ["push", "origin", tagName];
     if (force) {
         args.push("--force");
     }
-    core.debug(`Executing: git ${args.join(" ")}`);
+    if (logger["verbose"]) { // Access private verbose property for special formatting
+        core.info(`  → Executing: git ${args.join(" ")}`);
+    }
+    logger.debug(`Executing: git ${args.join(" ")}`);
     try {
         const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)("git", args, {
-            silent: !verbose,
+            silent: !logger.verbose,
             cwd,
         });
         core.info(`Successfully pushed tag ${tagName} to remote`);
@@ -166,12 +178,18 @@ async function pushTag(tagName, force, verbose) {
 /**
  * Verifies that a tag points to the expected commit
  */
-async function verifyTag(tagName, expectedSha, verbose) {
-    core.debug(`Verifying tag ${tagName} points to ${expectedSha}`);
+async function verifyTag(tagName, expectedSha, logger) {
+    if (logger["verbose"]) { // Access private verbose property for special formatting
+        core.info(`  → Verifying tag ${tagName} points to ${expectedSha}`);
+    }
+    logger.debug(`Verifying tag ${tagName} points to ${expectedSha}`);
     try {
-        const actualSha = await getCommitSha(`refs/tags/${tagName}`, verbose);
+        const actualSha = await getCommitSha(`refs/tags/${tagName}`, logger);
         const matches = actualSha === expectedSha;
-        core.debug(`Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
+        if (logger.verbose) {
+            core.info(`  → Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
+        }
+        logger.debug(`Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
         return matches;
     }
     catch {

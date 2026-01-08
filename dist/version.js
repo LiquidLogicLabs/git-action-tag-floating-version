@@ -40,14 +40,20 @@ const core = __importStar(require("@actions/core"));
  * Extracts version information from a tag name
  * Supports tags with or without 'v' prefix (e.g., 'v1.2.3' or '1.2.3')
  */
-function parseVersion(tag, verbose) {
-    core.debug(`Parsing version from tag: ${tag}`);
+function parseVersion(tag, logger) {
+    if (logger["verbose"]) { // Access private verbose property for special formatting
+        core.info(`  → Parsing version from tag: ${tag}`);
+    }
+    logger.debug(`Parsing version from tag: ${tag}`);
     // Remove 'refs/tags/' prefix if present
     let tagName = tag.replace(/^refs\/tags\//, "");
     // Auto-detect and handle 'v' prefix
     const hasVPrefix = tagName.startsWith("v");
     if (hasVPrefix) {
-        core.debug(`Detected 'v' prefix, will strip for parsing`);
+        if (logger.verbose) {
+            core.info(`  → Detected 'v' prefix, will strip for parsing`);
+        }
+        logger.debug(`Detected 'v' prefix, will strip for parsing`);
         tagName = tagName.substring(1);
     }
     // Parse semantic version: major.minor.patch[-prerelease][+build]
@@ -60,7 +66,10 @@ function parseVersion(tag, verbose) {
         versionRegex = /(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+(.+))?$/;
         match = tagName.match(versionRegex);
         if (match) {
-            core.debug(`Extracted version from custom prefix tag: ${match[0]}`);
+            if (logger.verbose) {
+                core.info(`  → Extracted version from custom prefix tag: ${match[0]}`);
+            }
+            logger.debug(`Extracted version from custom prefix tag: ${match[0]}`);
         }
     }
     if (!match) {
@@ -81,13 +90,24 @@ function parseVersion(tag, verbose) {
         prerelease,
         build,
     };
-    core.debug(`Parsed version components:`);
-    core.debug(`  Major: ${major}`);
-    core.debug(`  Minor: ${minor}`);
-    core.debug(`  Patch: ${patch}`);
-    core.debug(`  Prerelease: ${prerelease || "none"}`);
-    core.debug(`  Build: ${build || "none"}`);
-    core.debug(`  Is Prerelease: ${isPrerelease}`);
+    if (logger["verbose"]) { // Access private verbose property for special formatting
+        core.info(`  → Parsed version components:`);
+        core.info(`    Major: ${major}`);
+        core.info(`    Minor: ${minor}`);
+        core.info(`    Patch: ${patch}`);
+        core.info(`    Prerelease: ${prerelease || "none"}`);
+        core.info(`    Build: ${build || "none"}`);
+        core.info(`    Is Prerelease: ${isPrerelease}`);
+    }
+    else {
+        logger.debug(`Parsed version components:`);
+        logger.debug(`  Major: ${major}`);
+        logger.debug(`  Minor: ${minor}`);
+        logger.debug(`  Patch: ${patch}`);
+        logger.debug(`  Prerelease: ${prerelease || "none"}`);
+        logger.debug(`  Build: ${build || "none"}`);
+        logger.debug(`  Is Prerelease: ${isPrerelease}`);
+    }
     return versionInfo;
 }
 /**

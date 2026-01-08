@@ -14,10 +14,7 @@ This document outlines best practices for creating GitHub/Gitea Actions based on
 - `package.json` - Node.js dependencies and build scripts
 - `tsconfig.json` - TypeScript configuration
 - `CHANGELOG.md` - Keep a Changelog format (optional - only if you want to maintain a changelog file)
-- `README.md` - User-facing documentation with badges, usage examples, inputs/outputs
-- `docs/` - Additional documentation (recommended for development/contributing guides)
-  - `docs/DEVELOPMENT.md` - Development setup, workflow, and contributing guidelines
-  - `docs/TESTING.md` - Comprehensive testing documentation
+- `README.md` - Comprehensive documentation with badges and examples
 - `.gitignore` - Organized by category (dependencies, build outputs, IDE, OS files, etc.)
 - `.devcontainer/` - Dev container configuration (recommended for consistent development environment)
 - `.eslintrc.json` - ESLint configuration with ignore patterns (not CLI flags)
@@ -36,12 +33,10 @@ action-name/
 ├── .devcontainer/          # Dev container configuration
 │   ├── devcontainer.json  # Container definition
 │   └── README.md          # Dev container usage instructions
-├── docs/                   # Additional documentation
-│   ├── DEVELOPMENT.md     # Development and contributing guide
-│   └── TESTING.md         # Testing documentation
 ├── src/                    # TypeScript source code
 │   ├── index.ts           # Main entry point
 │   ├── types.ts           # TypeScript type definitions
+│   ├── logger.ts          # Logger utility class (REQUIRED)
 │   └── [module].ts        # Modular code organization
 ├── dist/                   # Built output (COMMITTED to git)
 │   └── index.js           # Bundled action code
@@ -252,7 +247,7 @@ run();
 - **Modular design**: Split functionality into separate modules/files
 - **Type safety**: Define types in `types.ts` or per-module
 - **Error handling**: Always wrap in try/catch, use `core.setFailed()`
-- **Logging**: Use `core.info()`, `core.warning()`, `core.error()` appropriately
+- **Logging**: Use the standardized `Logger` class (see "Logging" section below)
 - **Secret masking**: Use `core.setSecret()` for sensitive values
 - **Input validation**: Validate inputs early and provide clear error messages
 
@@ -726,26 +721,9 @@ coverage/
 - **DO NOT commit** `node_modules/`, `lib/`, or build artifacts
 - Organize `.gitignore` by category with comments
 
-## Documentation
+## Documentation (README.md)
 
-### Documentation Structure
-
-**Recommended approach**: Split documentation into user-facing (README.md) and developer-facing (docs/) content.
-
-**README.md** should focus on:
-- What the action does (for users)
-- How to use it (usage examples)
-- Inputs and outputs
-- Basic examples and workflows
-- Quick links to detailed documentation
-
-**docs/** folder should contain:
-- `docs/DEVELOPMENT.md` - Development setup, workflow, contributing guidelines
-- `docs/TESTING.md` - Comprehensive testing documentation (all test scenarios, how to run tests, write new tests)
-
-This keeps the README concise for users while providing detailed information for contributors.
-
-### README.md Required Sections
+### Required Sections
 
 1. **Badges** - CI status, License, TypeScript version
 2. **Description** - What the action does
@@ -756,40 +734,8 @@ This keeps the README concise for users while providing detailed information for
 7. **Configuration** - If config files are supported
 8. **Examples** - Complete workflow examples
 9. **Security** - Security considerations
-10. **Documentation** - Links to `docs/DEVELOPMENT.md` and `docs/TESTING.md` (if applicable)
-11. **License** - MIT (typically)
-12. **Credits/Acknowledgments** - If based on another project
-
-### docs/DEVELOPMENT.md Structure
-
-Should include:
-1. **Prerequisites** - Required tools and versions
-2. **Getting Started** - Clone, install, setup instructions
-3. **Project Structure** - Overview of the codebase
-4. **Development Workflow** - Making changes, testing, committing
-5. **Code Standards** - Linting, formatting, type safety
-6. **Available Scripts** - All npm scripts and what they do
-7. **Building** - How to build the action
-8. **Linting and Formatting** - How to maintain code quality
-9. **Testing** - Link to TESTING.md or brief overview
-10. **Contributing** - Pull request process, code review guidelines
-11. **Releasing** - How to create releases
-12. **Troubleshooting** - Common issues and solutions
-13. **Resources** - Links to relevant documentation
-14. **Getting Help** - How to get support
-
-### docs/TESTING.md Structure
-
-Should include:
-1. **Test Structure** - Overview of test organization
-2. **Running Tests** - Commands to run tests
-3. **Unit Tests** - Documentation of all unit test scenarios
-4. **Integration Tests** - Documentation of all integration test scenarios
-5. **Test Environment** - Local vs CI vs Act
-6. **Manual Testing** - How to manually test the action
-7. **Test Coverage Goals** - Coverage targets and how to view reports
-8. **Troubleshooting Tests** - Common test issues and solutions
-9. **Writing New Tests** - Guidelines for adding tests
+10. **License** - MIT (typically)
+11. **Credits/Acknowledgments** - If based on another project
 
 ### Badge Examples
 
@@ -853,6 +799,248 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use Jest with ts-jest
 - Place tests in `src/__tests__/` or alongside source files
 - Use `continue-on-error: true` in CI if tests are optional
+
+## Logging
+
+### Standardized Logger Pattern
+
+**All Node.js actions MUST use a standardized `Logger` class** located in `src/logger.ts`. This ensures consistent logging behavior across all actions.
+
+#### Logger Class Structure
+
+Create `src/logger.ts` with the following pattern:
+
+```typescript
+import * as core from '@actions/core';
+
+/**
+ * Logger utility with verbose/debug support
+ * Provides consistent logging across the action
+ */
+export class Logger {
+  public readonly verbose: boolean;
+
+  constructor(verbose: boolean = false) {
+    this.verbose = verbose;
+  }
+
+  /**
+   * Log an info message
+   */
+  info(message: string): void {
+    core.info(message);
+  }
+
+  /**
+   * Log a warning message
+   */
+  warning(message: string): void {
+    core.warning(message);
+  }
+
+  /**
+   * Log an error message
+   */
+  error(message: string): void {
+    core.error(message);
+  }
+
+  /**
+   * Log a debug message - uses core.info() when verbose is true so it always shows
+   * Falls back to core.debug() when verbose is false (for when ACTIONS_STEP_DEBUG is set at workflow level)
+   */
+  debug(message: string): void {
+    if (this.verbose) {
+      core.info(`[DEBUG] ${message}`);
+    } else {
+      core.debug(message);
+    }
+  }
+}
+```
+
+#### Usage in Actions
+
+**In `action.yml`, add a `verbose` input:**
+
+```yaml
+inputs:
+  verbose:
+    description: 'Enable verbose debug logging'
+    required: false
+    default: 'false'
+```
+
+**In `src/index.ts`:**
+
+```typescript
+import * as core from '@actions/core';
+import { Logger } from './logger';
+
+async function run(): Promise<void> {
+  try {
+    const verbose = core.getBooleanInput('verbose');
+    
+    // Create logger instance
+    const logger = new Logger(verbose);
+    
+    // Use logger throughout the action
+    logger.debug('Debug message');
+    logger.info('Info message');
+    logger.warning('Warning message');
+    logger.error('Error message');
+    
+    // Pass logger to other modules
+    const result = await someFunction(logger);
+    
+  } catch (error) {
+    if (error instanceof Error) {
+      core.setFailed(error.message);
+    }
+  }
+}
+```
+
+**Pass logger to module functions:**
+
+```typescript
+// src/module.ts
+import { Logger } from './logger';
+
+export async function someFunction(logger: Logger): Promise<string> {
+  logger.debug('Starting operation');
+  // ... operation code ...
+  logger.debug('Operation complete');
+  return result;
+}
+```
+
+#### Key Benefits
+
+1. **Consistent Verbose Output**: When `verbose: true`, debug messages always show via `core.info('[DEBUG] ...')`, regardless of `ACTIONS_STEP_DEBUG` workflow setting
+2. **Workflow-Level Debug**: When `verbose: false`, debug messages still show if `ACTIONS_STEP_DEBUG` is set at the workflow level via `core.debug()`
+3. **Centralized Pattern**: All actions use the same logging pattern, making it easier to maintain and understand
+4. **Type Safety**: Logger is strongly typed and can be passed between modules
+5. **Testability**: Logger can be easily mocked in tests
+
+#### Important Notes
+
+- **Always use `verbose` as the input name** (not `debug`) for consistency
+- **Make `verbose` property `public readonly`** so it can be accessed when needed (e.g., for conditional formatting)
+- **Do NOT create inline `debugLog` helpers** - always use the Logger class
+- **Pass Logger instance to module functions** instead of passing `verbose: boolean`
+- **For backward compatibility**: If updating existing actions, you can keep a deprecated `createLogger()` function that returns a legacy logger interface
+
+#### Example: Updating Existing Actions
+
+If an action currently uses inline `debugLog` helpers:
+
+```typescript
+// OLD - Don't do this
+const debugLog = (message: string) => {
+  if (verbose) {
+    core.info(`[DEBUG] ${message}`);
+  } else {
+    core.debug(message);
+  }
+};
+```
+
+Replace with Logger class:
+
+```typescript
+// NEW - Use Logger class
+import { Logger } from './logger';
+const logger = new Logger(verbose);
+logger.debug(message);
+```
+
+#### Testing the Logger
+
+**All actions should include unit tests for the Logger class** located in `src/__tests__/logger.test.ts`. This ensures the logging behavior works correctly.
+
+**Example test file:**
+
+```typescript
+import { Logger } from '../logger';
+import * as core from '@actions/core';
+
+// Mock @actions/core
+jest.mock('@actions/core', () => ({
+  info: jest.fn(),
+  warning: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+}));
+
+describe('Logger', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('with verbose disabled', () => {
+    const logger = new Logger(false);
+
+    it('should log info messages', () => {
+      logger.info('Test message');
+      expect(core.info).toHaveBeenCalledWith('Test message');
+    });
+
+    it('should log warning messages', () => {
+      logger.warning('Warning message');
+      expect(core.warning).toHaveBeenCalledWith('Warning message');
+    });
+
+    it('should log error messages', () => {
+      logger.error('Error message');
+      expect(core.error).toHaveBeenCalledWith('Error message');
+    });
+
+    it('should log debug messages using core.debug() when verbose is false', () => {
+      logger.debug('Debug message');
+      expect(core.debug).toHaveBeenCalledWith('Debug message');
+      expect(core.info).not.toHaveBeenCalled();
+    });
+
+    it('should expose verbose property', () => {
+      expect(logger.verbose).toBe(false);
+    });
+  });
+
+  describe('with verbose enabled', () => {
+    const logger = new Logger(true);
+
+    it('should log debug messages using core.info() with [DEBUG] prefix when verbose is true', () => {
+      logger.debug('Debug message');
+      expect(core.info).toHaveBeenCalledWith('[DEBUG] Debug message');
+      expect(core.debug).not.toHaveBeenCalled();
+    });
+
+    it('should expose verbose property', () => {
+      expect(logger.verbose).toBe(true);
+    });
+  });
+
+  describe('default constructor', () => {
+    it('should default to verbose=false', () => {
+      const logger = new Logger();
+      expect(logger.verbose).toBe(false);
+      logger.debug('Test');
+      expect(core.debug).toHaveBeenCalledWith('Test');
+      expect(core.info).not.toHaveBeenCalled();
+    });
+  });
+});
+```
+
+**Key test requirements:**
+
+1. **Test both verbose modes**: Verify behavior when `verbose: true` and `verbose: false`
+2. **Verify core.debug() is called**: When `verbose: false`, `debug()` should call `core.debug()`, not `core.info()`
+3. **Verify core.info() is called with [DEBUG] prefix**: When `verbose: true`, `debug()` should call `core.info('[DEBUG] ...')`
+4. **Test all log methods**: `info()`, `warning()`, `error()`, and `debug()` should be tested
+5. **Test verbose property**: Verify that `verbose` property is correctly exposed and accessible
+6. **Test default constructor**: Verify that default constructor sets `verbose: false`
 
 ## Dev Container Configuration
 
@@ -977,8 +1165,7 @@ Add `.github/workflows/.act/` directory with event JSON files for local workflow
 3. **Release Tag Creation** (ONLY after steps 1 and 2 are complete and only if explicity asked - if not prompt for permission):
    - **DO NOT** create a tag until local tests/build AND CI workflow both pass
    - If you created a tag prematurely, delete it: `git tag -d v1.2.3 && git push origin :refs/tags/v1.2.3`
-   - **Recommended**: Use npm release commands (see "Using npm Release Commands" below)
-   - **Manual alternative**: Create semver tag: `git tag -a v1.2.3 -m "Release message"`
+   - Create semver tag: `git tag -a v1.2.3 -m "Release message"`
    - Push tag: `git push origin v1.2.3`
    - Release workflow will automatically run (it will also run lint and tests as a safety check)
 
@@ -986,10 +1173,8 @@ Add `.github/workflows/.act/` directory with event JSON files for local workflow
 
 1. **Commit changes** to main branch (optionally update CHANGELOG.md if you maintain one)
 2. **Follow Pre-Release Checklist above** (local tests → CI verification → tag creation)
-3. **Create release tag** (choose one method):
-   - **Recommended**: Use `npm run release:patch/minor/major` (see "Using npm Release Commands" below)
-   - **Manual**: Create semver tag: `git tag -a v1.2.3 -m "Release message"` (ONLY after CI passes)
-4. **Push tag**: `git push origin v1.2.3` (npm release commands do this automatically)
+3. **Create semver tag**: `git tag -a v1.2.3 -m "Release message"` (ONLY after CI passes)
+4. **Push tag**: `git push origin v1.2.3`
 5. **Release workflow** automatically:
    - **Runs lint and tests** (lint job + reusable `test.yml` workflow) - **MUST pass before release**
    - Validates version format using `check-version-format-action`
@@ -1034,91 +1219,6 @@ Use `mikepenz/release-changelog-builder-action@v6` to:
 - `PR` (default): Only includes Pull Requests
 - `COMMIT`: Only includes commits (treats commits like PRs)
 - `HYBRID` (recommended): Includes both PRs and commits - best for projects that use both workflows
-
-### Using npm Release Commands
-
-**Recommended approach**: Use `standard-version` package for automated release tag creation with commit summaries.
-
-#### Setup
-
-1. **Install dependency**:
-   ```bash
-   npm install --save-dev standard-version
-   ```
-
-2. **Add scripts to `package.json`**:
-   ```json
-   {
-     "scripts": {
-       "release:patch": "standard-version --release-as patch --skip.changelog && git push --follow-tags",
-       "release:minor": "standard-version --release-as minor --skip.changelog && git push --follow-tags",
-       "release:major": "standard-version --release-as major --skip.changelog && git push --follow-tags"
-     }
-   }
-   ```
-
-   The `--skip.changelog` flag prevents updating CHANGELOG.md (since the workflow generates release notes).
-
-#### Usage
-
-After completing the Pre-Release Checklist (local tests and CI verification):
-
-```bash
-# For patch release (1.0.0 → 1.0.1)
-npm run release:patch
-
-# For minor release (1.0.0 → 1.1.0)
-npm run release:minor
-
-# For major release (1.0.0 → 2.0.0)
-npm run release:major
-```
-
-#### What it does
-
-`standard-version` automatically:
-1. Bumps version in `package.json` (patch/minor/major)
-2. Analyzes commits since last tag to generate a commit summary
-3. Creates a git commit with message like "chore: release v1.0.1"
-4. Creates a git tag with a message that includes:
-   - Version number
-   - Summary of commits since last release
-   - Formatted changelog-style content (based on conventional commits if used)
-5. Script then pushes tags and commits to trigger GitHub Actions workflow
-
-#### Tag message format
-
-Tag messages automatically include commit summaries formatted like:
-```
-v1.0.1
-
-### Features
-* Add new feature
-
-### Bug Fixes
-* Fix critical bug
-
-### Chores
-* Update dependencies
-```
-
-This works with conventional commits (recommended) or regular commit messages.
-
-#### Benefits
-
-- **No custom scripts**: Uses well-maintained, popular package (2M+ weekly downloads)
-- **Automatic commit summaries**: Generated from git history
-- **Simple**: Single command to release
-- **Standard**: Uses conventional tooling
-- **Safe**: Requires clean working directory (standard-version fails if dirty)
-- **Informative**: Tag messages include a summary of changes since last release
-
-#### Considerations
-
-- Adds a dev dependency (~2MB)
-- Requires a clean working directory (fails if there are uncommitted changes)
-- Tag messages follow conventional commit format (can be customized via `.versionrc.json`)
-- Works best with conventional commits but handles regular commits too
 
 ## Examples from LiquidLogicLabs Actions
 

@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import { parseVersion, createTagName } from "./version";
 import { getCommitSha, createOrUpdateTag, pushTag, verifyTag } from "./git";
 import { ActionInputs } from "./types";
+import { Logger } from "./logger";
 
 /**
  * Main action entry point
@@ -17,7 +18,8 @@ export async function run(): Promise<void> {
 		const verbose = core.getBooleanInput("verbose");
 
 		// Set ACTIONS_STEP_DEBUG if verbose is enabled
-		// This enables all core.debug() calls to output automatically
+		// Note: This may not work if ACTIONS_STEP_DEBUG isn't set at workflow level
+		// For reliable verbose output, we use Logger which uses core.info() when verbose is true
 		if (verbose) {
 			process.env.ACTIONS_STEP_DEBUG = "true";
 		}
@@ -34,14 +36,19 @@ export async function run(): Promise<void> {
 			verbose,
 		};
 
-		core.debug("Verbose logging enabled");
-		core.debug("Action inputs:");
-		core.debug(`  tag: ${inputs.tag}`);
-		core.debug(`  refTag: ${inputs.refTag}`);
-		core.debug(`  prefix: ${inputs.prefix}`);
-		core.debug(`  updateMinor: ${inputs.updateMinor}`);
-		core.debug(`  ignorePrerelease: ${inputs.ignorePrerelease}`);
-		core.debug(`  verbose: ${inputs.verbose}`);
+		// Create logger instance
+		const logger = new Logger(verbose);
+
+		if (verbose) {
+			logger.info("🔍 Verbose logging enabled");
+		}
+		logger.debug("Action inputs:");
+		logger.debug(`  tag: ${inputs.tag}`);
+		logger.debug(`  refTag: ${inputs.refTag}`);
+		logger.debug(`  prefix: ${inputs.prefix}`);
+		logger.debug(`  updateMinor: ${inputs.updateMinor}`);
+		logger.debug(`  ignorePrerelease: ${inputs.ignorePrerelease}`);
+		logger.debug(`  verbose: ${inputs.verbose}`);
 
 		// Determine if we're using a separate refTag for commit resolution
 		// IMPORTANT: refTag is ONLY used to find the commit SHA - it is NEVER parsed for version information
@@ -49,13 +56,13 @@ export async function run(): Promise<void> {
 
 		if (usingSeparateRefTag) {
 			core.info(`Using refTag "${refTag}" to find commit SHA (different from version tag "${tag}")`);
-			core.debug(`refTag will be used ONLY to resolve commit SHA (not parsed for version)`);
+			logger.debug(`refTag will be used ONLY to resolve commit SHA (not parsed for version)`);
 		}
 
 		// Extract version information from tag ONLY
 		// NOTE: We parse tag for version info, NOT refTag. refTag is only used to find the commit.
 		core.info(`Extracting version from tag: ${tag}`);
-		const versionInfo = parseVersion(tag, verbose);
+		const versionInfo = parseVersion(tag, logger);
 
 		// Check for prerelease
 		// Only apply prerelease check if we're using the same tag for both version extraction and commit reference
@@ -68,16 +75,19 @@ export async function run(): Promise<void> {
 
 		if (versionInfo.isPrerelease) {
 			if (usingSeparateRefTag) {
-				core.debug(`Prerelease version detected in tag "${tag}" but proceeding (using separate refTag "${refTag}" for commit reference): ${versionInfo.prerelease}`);
+				if (logger.verbose) {
+					logger.info(`ℹ️  Prerelease version detected in tag "${tag}" but proceeding (using separate refTag "${refTag}" for commit reference): ${versionInfo.prerelease}`);
+				}
+				logger.debug(`Prerelease version detected in tag "${tag}" but proceeding (using separate refTag "${refTag}" for commit reference): ${versionInfo.prerelease}`);
 			} else {
-				core.debug(`Prerelease version detected but proceeding (ignorePrerelease=false): ${versionInfo.prerelease}`);
+				logger.debug(`Prerelease version detected but proceeding (ignorePrerelease=false): ${versionInfo.prerelease}`);
 			}
 		}
 
 		// Get commit SHA for reference tag
 		// IMPORTANT: refTag is used ONLY to resolve the commit SHA (via git rev-parse)
 		// We do NOT parse refTag for version information - only tag is parsed for that
-		const commitSha = await getCommitSha(refTag, verbose);
+		const commitSha = await getCommitSha(refTag, logger);
 
 		// Show initial summary of what will be done
 		const majorTagName = createTagName(prefix, versionInfo.major);
@@ -91,14 +101,14 @@ export async function run(): Promise<void> {
 		// Create/update major version tag
 		core.info(`Creating/updating major tag: ${majorTagName}`);
 
-		const majorTagResult = await createOrUpdateTag(majorTagName, commitSha, verbose);
+		const majorTagResult = await createOrUpdateTag(majorTagName, commitSha, logger);
 
 		// Push major tag
-		await pushTag(majorTagName, majorTagResult.updated, verbose);
+		await pushTag(majorTagName, majorTagResult.updated, logger);
 
 		// Verify major tag (only in verbose mode to avoid unnecessary git calls)
-		if (verbose) {
-			const verified = await verifyTag(majorTagName, commitSha, verbose);
+		if (logger.verbose) {
+			const verified = await verifyTag(majorTagName, commitSha, logger);
 			if (!verified) {
 				core.warning(`Tag ${majorTagName} verification failed`);
 			}
@@ -115,14 +125,14 @@ export async function run(): Promise<void> {
 			const minorTagName = createTagName(prefix, versionInfo.major, versionInfo.minor);
 			core.info(`Creating/updating minor tag: ${minorTagName}`);
 
-			const minorTagResult = await createOrUpdateTag(minorTagName, commitSha, verbose);
+			const minorTagResult = await createOrUpdateTag(minorTagName, commitSha, logger);
 
 			// Push minor tag
-			await pushTag(minorTagName, minorTagResult.updated, verbose);
+			await pushTag(minorTagName, minorTagResult.updated, logger);
 
 			// Verify minor tag (only in verbose mode to avoid unnecessary git calls)
-			if (verbose) {
-				const verified = await verifyTag(minorTagName, commitSha, verbose);
+			if (logger.verbose) {
+				const verified = await verifyTag(minorTagName, commitSha, logger);
 				if (!verified) {
 					core.warning(`Tag ${minorTagName} verification failed`);
 				}
@@ -143,7 +153,7 @@ export async function run(): Promise<void> {
 				core.info(`   ↻ Updated: ${result.tag}`);
 			}
 		}
-		core.debug("Action completed successfully");
+		logger.debug("Action completed successfully");
 	} catch (error) {
 		if (error instanceof Error) {
 			core.error(error.message);
