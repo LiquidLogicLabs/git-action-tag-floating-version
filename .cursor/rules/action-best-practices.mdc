@@ -490,11 +490,12 @@ jobs:
         with:
           fetch-depth: 0  # Full history for changelog generation
 
-      - name: Check version format in tag
+      - name: Parse and validate version tag
         id: version
-        uses: nowsprinting/check-version-format-action@v4
+        uses: LiquidLogicLabs/git-tag-validate-version-action@v1
         with:
-          prefix: 'v'
+          tag: ${{ github.event.inputs.tag || github.ref_name }}
+          versionType: 'auto'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -521,29 +522,30 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create/Update Major, Minor, and Latest Version Tags
-        if: steps.version.outputs.is_stable == 'true'
-        uses: simbo/action-semver-release-action@latest
+        if: steps.version.outputs.hasPrerelease != 'true' && steps.version.outputs.isValid == 'true'
+        uses: LiquidLogicLabs/git-floating-version-tags-action@v1
         with:
-          create-release: false  # We handle release creation separately with changelog
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.event.inputs.tag || github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          name: Release ${{ steps.version.outputs.full_without_prefix }}
+          name: Release ${{ steps.version.outputs.version }}
           body: ${{ steps.release_notes.outputs.changelog }}
           draft: false
-          prerelease: ${{ steps.version.outputs.is_stable != 'true' }}
+          prerelease: ${{ steps.version.outputs.hasPrerelease == 'true' }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Summary
         run: |
           echo "## 🎉 Release Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.version.outputs.full_without_prefix }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **GitHub Release**: [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.version.outputs.is_stable }}" != "true" ]; then
+          if [ "${{ steps.version.outputs.hasPrerelease }}" != "true" ]; then
             echo "- **Status**: ⚠️ Pre-release (for testing)" >> $GITHUB_STEP_SUMMARY
           else
             echo "- **Status**: ✅ Stable release" >> $GITHUB_STEP_SUMMARY
@@ -578,11 +580,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check version format in tag
+      - name: Parse and validate version tag
         id: version
-        uses: nowsprinting/check-version-format-action@v4
+        uses: LiquidLogicLabs/git-tag-validate-version-action@v1
         with:
-          prefix: 'v'
+          tag: ${{ github.event.inputs.tag || github.ref_name }}
+          versionType: 'auto'
 
       - name: Build validation
         run: |
@@ -607,12 +610,12 @@ jobs:
           cat > package-manifest.json << EOF
           {
             "name": "action-name",
-            "version": "${{ steps.version.outputs.full_without_prefix }}",
+            "version": "${{ steps.version.outputs.version }}",
             "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "git_sha": "${{ github.sha }}",
             "git_ref": "${{ github.ref_name }}",
             "platform": "${{ runner.os }}",
-            "is_prerelease": ${{ steps.version.outputs.is_stable != 'true' }}
+            "is_prerelease": ${{ steps.version.outputs.hasPrerelease == 'true' }}
           }
           EOF
 
@@ -629,29 +632,30 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create/Update Major, Minor, and Latest Version Tags
-        if: steps.version.outputs.is_stable == 'true'
-        uses: simbo/action-semver-release-action@latest
+        if: steps.version.outputs.hasPrerelease != 'true' && steps.version.outputs.isValid == 'true'
+        uses: LiquidLogicLabs/git-floating-version-tags-action@v1
         with:
-          create-release: false  # We handle release creation separately with changelog
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.event.inputs.tag || github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          name: Release ${{ steps.version.outputs.full_without_prefix }}
+          name: Release ${{ steps.version.outputs.version }}
           body: ${{ steps.release_notes.outputs.changelog }}
           draft: false
-          prerelease: ${{ steps.version.outputs.is_stable != 'true' }}
+          prerelease: ${{ steps.version.outputs.hasPrerelease == 'true' }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Summary
         run: |
           echo "## 🎉 Release Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.version.outputs.full_without_prefix }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **GitHub Release**: [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.version.outputs.is_stable }}" != "true" ]; then
+          if [ "${{ steps.version.outputs.hasPrerelease }}" != "true" ]; then
             echo "- **Status**: ⚠️ Pre-release (for testing)" >> $GITHUB_STEP_SUMMARY
           else
             echo "- **Status**: ✅ Stable release" >> $GITHUB_STEP_SUMMARY
@@ -668,7 +672,7 @@ jobs:
 - **For composite actions**: Validate `action.yml` and shell script syntax before release
 - **Self-contained**: Release workflow should run all checks independently (lint + test), not depend on external CI workflows
 - **CI Workflow**: Should skip on tag pushes using `if: github.ref_type != 'tag'` to avoid duplicate runs (release workflow handles tag pushes)
-- **Floating Tags**: Use `simbo/action-semver-release-action@latest` to create/update major (`v1`), minor (`v1.2`), and `latest` tags for stable releases
+- **Floating Tags**: Use `LiquidLogicLabs/git-floating-version-tags-action@v1` to create/update major (`v1`), minor (`v1.2`), and `latest` tags for stable releases
 - **Version Pinning**: Users can pin to `@v1` (major), `@v1.2` (minor), `@latest` (latest stable), or `@v1.2.3` (exact version)
 - **Optional**: Include usage examples in release notes template for better user experience
 - **Optional**: Create package manifest for tracking build metadata
