@@ -1,6 +1,6 @@
 {
 	"name": "tag-floating-version-action",
-	"version": "1.0.5",
+	"version": "1.0.6",
 	"description": "GitHub Action to create or update floating version tag aliases",
 	"main": "dist/index.js",
 	"scripts": {
