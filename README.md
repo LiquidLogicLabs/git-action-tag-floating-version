@@ -81,6 +81,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,7 +97,7 @@ jobs:
           verbose: true
 
       - name: Create Release
-        uses: ncipollo/release-action@v1
+        uses: LiquidLogicLabs/git-action-release@v1
         with:
           tag: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
