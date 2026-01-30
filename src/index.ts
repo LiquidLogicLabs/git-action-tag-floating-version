@@ -15,14 +15,10 @@ export async function run(): Promise<void> {
 		const prefix = core.getInput("prefix") || "v";
 		const updateMinor = core.getBooleanInput("updateMinor");
 		const ignorePrerelease = core.getBooleanInput("ignorePrerelease");
-		const verbose = core.getBooleanInput("verbose");
-
-		// Set ACTIONS_STEP_DEBUG if verbose is enabled
-		// Note: This may not work if ACTIONS_STEP_DEBUG isn't set at workflow level
-		// For reliable verbose output, we use Logger which uses core.info() when verbose is true
-		if (verbose) {
-			process.env.ACTIONS_STEP_DEBUG = "true";
-		}
+		const verboseInput = core.getBooleanInput("verbose");
+		const envStepDebug = (process.env.ACTIONS_STEP_DEBUG || "").toLowerCase();
+		const stepDebugEnabled = core.isDebug() || envStepDebug === "true" || envStepDebug === "1";
+		const verbose = verboseInput || stepDebugEnabled;
 
 		// Default refTag to tag if not provided
 		const refTag = refTagInput || tag;
