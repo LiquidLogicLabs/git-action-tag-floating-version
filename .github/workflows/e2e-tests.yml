@@ -17,6 +17,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Configure local remote for tag push
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${RUNNER_TEMP}/tag-floating-version-remote.git"
+          git init --bare "$REMOTE_PATH"
+          git remote set-url origin "$REMOTE_PATH"
+
       - name: Smoke test - action runs from committed dist
         uses: ./
         with:
