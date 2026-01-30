@@ -10,11 +10,18 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    # Run action from committed dist first (no build). Ensures E2E fails if dist is unbundled.
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Smoke test - action runs from committed dist
+        uses: ./
+        with:
+          tag: v1.0.0
+          verbose: 'false'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
