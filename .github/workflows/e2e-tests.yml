@@ -21,6 +21,7 @@ jobs:
         uses: ./
         with:
           tag: v1.0.0
+          prefix: e2e-
           verbose: 'false'
 
       - name: Setup Node.js
