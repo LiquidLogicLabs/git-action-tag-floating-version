@@ -25643,6 +25643,71 @@ module.exports = {
 
 /***/ }),
 
+/***/ 2973:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getInputs = getInputs;
+const core = __importStar(__nccwpck_require__(7484));
+function getInputs() {
+    const tag = core.getInput('tag', { required: true });
+    const refTagInput = core.getInput('refTag');
+    const prefix = core.getInput('prefix') || 'v';
+    const updateMinor = core.getBooleanInput('updateMinor');
+    const ignorePrerelease = core.getBooleanInput('ignorePrerelease');
+    const verboseInput = core.getBooleanInput('verbose');
+    const envStepDebug = (process.env.ACTIONS_STEP_DEBUG || '').toLowerCase();
+    const stepDebugEnabled = core.isDebug() || envStepDebug === 'true' || envStepDebug === '1';
+    const verbose = verboseInput || stepDebugEnabled;
+    return {
+        tag,
+        refTag: refTagInput || tag,
+        prefix,
+        updateMinor,
+        ignorePrerelease,
+        verbose,
+        refTagProvided: refTagInput !== '',
+    };
+}
+
+
+/***/ }),
+
 /***/ 1243:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -25890,6 +25955,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
+const config_1 = __nccwpck_require__(2973);
 const version_1 = __nccwpck_require__(311);
 const git_1 = __nccwpck_require__(1243);
 const logger_1 = __nccwpck_require__(6999);
@@ -25898,29 +25964,11 @@ const logger_1 = __nccwpck_require__(6999);
  */
 async function run() {
     try {
-        // Parse inputs
-        const tag = core.getInput("tag", { required: true });
-        const refTagInput = core.getInput("refTag");
-        const prefix = core.getInput("prefix") || "v";
-        const updateMinor = core.getBooleanInput("updateMinor");
-        const ignorePrerelease = core.getBooleanInput("ignorePrerelease");
-        const verboseInput = core.getBooleanInput("verbose");
-        const envStepDebug = (process.env.ACTIONS_STEP_DEBUG || "").toLowerCase();
-        const stepDebugEnabled = core.isDebug() || envStepDebug === "true" || envStepDebug === "1";
-        const verbose = verboseInput || stepDebugEnabled;
-        // Default refTag to tag if not provided
-        const refTag = refTagInput || tag;
-        const inputs = {
-            tag,
-            refTag,
-            prefix,
-            updateMinor,
-            ignorePrerelease,
-            verbose,
-        };
+        const inputs = (0, config_1.getInputs)();
         // Create logger instance
-        const logger = new logger_1.Logger(verbose);
-        if (verbose) {
+        const logger = new logger_1.Logger(inputs.verbose);
+        const { tag, refTag, prefix, updateMinor, ignorePrerelease } = inputs;
+        if (inputs.verbose) {
             logger.info("🔍 Verbose logging enabled");
         }
         logger.debug("Action inputs:");
@@ -25932,7 +25980,7 @@ async function run() {
         logger.debug(`  verbose: ${inputs.verbose}`);
         // Determine if we're using a separate refTag for commit resolution
         // IMPORTANT: refTag is ONLY used to find the commit SHA - it is NEVER parsed for version information
-        const usingSeparateRefTag = refTagInput && refTagInput !== tag;
+        const usingSeparateRefTag = inputs.refTagProvided && inputs.refTag !== inputs.tag;
         if (usingSeparateRefTag) {
             core.info(`Using refTag "${refTag}" to find commit SHA (different from version tag "${tag}")`);
             logger.debug(`refTag will be used ONLY to resolve commit SHA (not parsed for version)`);
@@ -25963,7 +26011,7 @@ async function run() {
         // Get commit SHA for reference tag
         // IMPORTANT: refTag is used ONLY to resolve the commit SHA (via git rev-parse)
         // We do NOT parse refTag for version information - only tag is parsed for that
-        const commitSha = await (0, git_1.getCommitSha)(refTag, logger);
+        const commitSha = await (0, git_1.getCommitSha)(inputs.refTag, logger);
         // Show initial summary of what will be done
         const majorTagName = (0, version_1.createTagName)(prefix, versionInfo.major);
         core.info(`📋 Plan: Will create/update floating tags pointing to commit ${commitSha.substring(0, 7)}`);
