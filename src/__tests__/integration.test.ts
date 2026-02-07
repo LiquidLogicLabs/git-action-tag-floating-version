@@ -40,6 +40,7 @@ jest.mock("@actions/core", () => ({
 	warning: mockWarning,
 	error: mockError,
 	setFailed: mockSetFailed,
+	isDebug: jest.fn(() => false),
 }));
 
 // Mock pushTag to skip actual git push (we'll verify tags locally)

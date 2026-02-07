@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
+import { getInputs } from "./config";
 import { parseVersion, createTagName } from "./version";
 import { getCommitSha, createOrUpdateTag, pushTag, verifyTag } from "./git";
-import { ActionInputs } from "./types";
 import { Logger } from "./logger";
 
 /**
@@ -9,33 +9,13 @@ import { Logger } from "./logger";
  */
 export async function run(): Promise<void> {
 	try {
-		// Parse inputs
-		const tag = core.getInput("tag", { required: true });
-		const refTagInput = core.getInput("refTag");
-		const prefix = core.getInput("prefix") || "v";
-		const updateMinor = core.getBooleanInput("updateMinor");
-		const ignorePrerelease = core.getBooleanInput("ignorePrerelease");
-		const verboseInput = core.getBooleanInput("verbose");
-		const envStepDebug = (process.env.ACTIONS_STEP_DEBUG || "").toLowerCase();
-		const stepDebugEnabled = core.isDebug() || envStepDebug === "true" || envStepDebug === "1";
-		const verbose = verboseInput || stepDebugEnabled;
-
-		// Default refTag to tag if not provided
-		const refTag = refTagInput || tag;
-
-		const inputs: ActionInputs = {
-			tag,
-			refTag,
-			prefix,
-			updateMinor,
-			ignorePrerelease,
-			verbose,
-		};
+		const inputs = getInputs();
 
 		// Create logger instance
-		const logger = new Logger(verbose);
+		const logger = new Logger(inputs.verbose);
+		const { tag, refTag, prefix, updateMinor, ignorePrerelease } = inputs;
 
-		if (verbose) {
+		if (inputs.verbose) {
 			logger.info("🔍 Verbose logging enabled");
 		}
 		logger.debug("Action inputs:");
@@ -48,7 +28,7 @@ export async function run(): Promise<void> {
 
 		// Determine if we're using a separate refTag for commit resolution
 		// IMPORTANT: refTag is ONLY used to find the commit SHA - it is NEVER parsed for version information
-		const usingSeparateRefTag = refTagInput && refTagInput !== tag;
+		const usingSeparateRefTag = inputs.refTagProvided && inputs.refTag !== inputs.tag;
 
 		if (usingSeparateRefTag) {
 			core.info(`Using refTag "${refTag}" to find commit SHA (different from version tag "${tag}")`);
@@ -83,7 +63,7 @@ export async function run(): Promise<void> {
 		// Get commit SHA for reference tag
 		// IMPORTANT: refTag is used ONLY to resolve the commit SHA (via git rev-parse)
 		// We do NOT parse refTag for version information - only tag is parsed for that
-		const commitSha = await getCommitSha(refTag, logger);
+		const commitSha = await getCommitSha(inputs.refTag, logger);
 
 		// Show initial summary of what will be done
 		const majorTagName = createTagName(prefix, versionInfo.major);
