@@ -214,7 +214,7 @@ describe("Integration Tests", () => {
 
 		// Run action (should use process.cwd() which is tempRepoDir)
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_UPDATEMINOR = "true";
+		process.env['INPUT_UPDATE-MINOR'] = "true";
 		process.env.INPUT_VERBOSE = "true";
 
 		await runAction();
@@ -231,8 +231,8 @@ describe("Integration Tests", () => {
 		expect(minorSha).toBe(tagSha);
 
 		console.log("✅ Major tag v1 and minor tag v1.2 correctly point to v1.2.3 commit");
-		expect(mockSetOutput).toHaveBeenCalledWith("majorTag", "v1");
-		expect(mockSetOutput).toHaveBeenCalledWith("minorTag", "v1.2");
+		expect(mockSetOutput).toHaveBeenCalledWith("major-tag", "v1");
+		expect(mockSetOutput).toHaveBeenCalledWith("minor-tag", "v1.2");
 	});
 
 	test("Test 2: Tag without v prefix", async () => {
@@ -244,7 +244,7 @@ describe("Integration Tests", () => {
 
 		// Run action
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_UPDATEMINOR = "true";
+		process.env['INPUT_UPDATE-MINOR'] = "true";
 
 		await runAction();
 
@@ -268,8 +268,8 @@ describe("Integration Tests", () => {
 
 		// Run action
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_REFTAG = "HEAD";
-		process.env.INPUT_UPDATEMINOR = "false";
+		process.env['INPUT_REF-TAG'] = "HEAD";
+		process.env['INPUT_UPDATE-MINOR'] = "false";
 
 		await runAction();
 
@@ -297,8 +297,8 @@ describe("Integration Tests", () => {
 
 		// Run action - should fail (setFailed will throw in mock)
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_UPDATEMINOR = "false";
-		process.env.INPUT_IGNOREPRERELEASE = "true"; // Enable prerelease skipping
+		process.env['INPUT_UPDATE-MINOR'] = "false";
+		process.env['INPUT_IGNORE-PRERELEASE'] = "true"; // Enable prerelease skipping
 
 		// Clear mock before running
 		mockSetFailed.mockClear();
@@ -332,9 +332,9 @@ describe("Integration Tests", () => {
 
 		// Run action - should succeed because refTag is provided separately
 		process.env.INPUT_TAG = prereleaseTagName;
-		process.env.INPUT_REFTAG = refTagName;
-		process.env.INPUT_UPDATEMINOR = "true";
-		process.env.INPUT_IGNOREPRERELEASE = "true"; // Even with ignorePrerelease=true, should work with separate refTag
+		process.env['INPUT_REF-TAG'] = refTagName;
+		process.env['INPUT_UPDATE-MINOR'] = "true";
+		process.env['INPUT_IGNORE-PRERELEASE'] = "true"; // Even with ignorePrerelease=true, should work with separate refTag
 
 		// Clear mock before running
 		mockSetFailed.mockClear();
@@ -367,7 +367,7 @@ describe("Integration Tests", () => {
 		// Run action with custom prefix
 		process.env.INPUT_TAG = tagName;
 		process.env.INPUT_PREFIX = "release-"; // Custom prefix for output tags
-		process.env.INPUT_UPDATEMINOR = "true";
+		process.env['INPUT_UPDATE-MINOR'] = "true";
 
 		await runAction();
 
@@ -392,7 +392,7 @@ describe("Integration Tests", () => {
 
 		// Run action
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_UPDATEMINOR = "false";
+		process.env['INPUT_UPDATE-MINOR'] = "false";
 
 		await runAction();
 
@@ -421,7 +421,7 @@ describe("Integration Tests", () => {
 
 		// Run action
 		process.env.INPUT_TAG = newTag;
-		process.env.INPUT_UPDATEMINOR = "false";
+		process.env['INPUT_UPDATE-MINOR'] = "false";
 
 		await runAction();
 
@@ -444,8 +444,8 @@ describe("Integration Tests", () => {
 
 		// Run action
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_IGNOREPRERELEASE = "false";
-		process.env.INPUT_UPDATEMINOR = "false";
+		process.env['INPUT_IGNORE-PRERELEASE'] = "false";
+		process.env['INPUT_UPDATE-MINOR'] = "false";
 
 		await runAction();
 
@@ -480,8 +480,8 @@ describe("Integration Tests", () => {
 
 		// Run action
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_REFTAG = "HEAD";
-		process.env.INPUT_UPDATEMINOR = "false";
+		process.env['INPUT_REF-TAG'] = "HEAD";
+		process.env['INPUT_UPDATE-MINOR'] = "false";
 
 		await runAction();
 
@@ -516,7 +516,7 @@ describe("Integration Tests", () => {
 
 		// Run action
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_UPDATEMINOR = "true";
+		process.env['INPUT_UPDATE-MINOR'] = "true";
 
 		await runAction();
 
@@ -541,13 +541,13 @@ describe("Integration Tests", () => {
 
 		// Run action
 		process.env.INPUT_TAG = tagName;
-		process.env.INPUT_UPDATEMINOR = "true";
+		process.env['INPUT_UPDATE-MINOR'] = "true";
 
 		await runAction();
 
 		// Verify outputs
-		expect(mockSetOutput).toHaveBeenCalledWith("majorTag", "v11");
-		expect(mockSetOutput).toHaveBeenCalledWith("minorTag", "v11.2");
+		expect(mockSetOutput).toHaveBeenCalledWith("major-tag", "v11");
+		expect(mockSetOutput).toHaveBeenCalledWith("minor-tag", "v11.2");
 
 		console.log("✅ Outputs correctly set: majorTag=v11, minorTag=v11.2");
 	});

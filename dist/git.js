@@ -58,7 +58,7 @@ async function getCommitSha(ref, logger) {
     core.info(`Resolving commit SHA for reference: ${ref}`);
     let output = "";
     const cwd = getGitWorkingDirectory();
-    logger.debug(`Using git working directory: ${cwd}`);
+    logger.verboseInfo(`Using git working directory: ${cwd}`);
     const options = {
         listeners: {
             stdout: (data) => {
@@ -74,10 +74,7 @@ async function getCommitSha(ref, logger) {
         if (!sha || sha.length !== 40) {
             throw new Error(`Invalid commit SHA resolved: ${sha}`);
         }
-        if (logger.verbose) {
-            core.info(`  → Resolved commit SHA: ${sha}`);
-        }
-        logger.debug(`Resolved commit SHA: ${sha}`);
+        logger.verboseInfo(`Resolved commit SHA: ${sha}`);
         core.info(`Resolved commit SHA: ${sha.substring(0, 7)}...`);
         return sha;
     }
@@ -90,7 +87,7 @@ async function getCommitSha(ref, logger) {
  * Checks if a tag exists locally
  */
 async function tagExists(tagName, logger) {
-    logger.debug(`Checking if tag exists: ${tagName}`);
+    logger.verboseInfo(`Checking if tag exists: ${tagName}`);
     try {
         const cwd = getGitWorkingDirectory();
         const exitCode = await (0, exec_1.exec)("git", ["rev-parse", `refs/tags/${tagName}`], {
@@ -111,10 +108,7 @@ async function createOrUpdateTag(tagName, commitSha, logger) {
     const exists = await tagExists(tagName, logger);
     if (exists) {
         core.info(`Updating existing tag: ${tagName} -> ${commitSha.substring(0, 7)}`);
-        if (logger.verbose) {
-            core.info(`  → Using git tag -f to force update tag ${tagName}`);
-        }
-        logger.debug(`Using git tag -f to force update tag ${tagName}`);
+        logger.verboseInfo(`Using git tag -f to force update tag ${tagName}`);
         // Force update existing tag
         const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)("git", ["tag", "-f", tagName, commitSha], {
@@ -130,10 +124,7 @@ async function createOrUpdateTag(tagName, commitSha, logger) {
     }
     else {
         core.info(`Creating new tag: ${tagName} -> ${commitSha.substring(0, 7)}`);
-        if (logger.verbose) {
-            core.info(`  → Using git tag to create new tag ${tagName}`);
-        }
-        logger.debug(`Using git tag to create new tag ${tagName}`);
+        logger.verboseInfo(`Using git tag to create new tag ${tagName}`);
         // Create new tag
         const cwd = getGitWorkingDirectory();
         await (0, exec_1.exec)("git", ["tag", tagName, commitSha], {
@@ -158,9 +149,7 @@ async function pushTag(tagName, force, logger) {
     if (force) {
         args.push("--force");
     }
-    if (logger["verbose"]) { // Access private verbose property for special formatting
-        core.info(`  → Executing: git ${args.join(" ")}`);
-    }
+    logger.verboseInfo(`Executing: git ${args.join(" ")}`);
     logger.debug(`Executing: git ${args.join(" ")}`);
     try {
         const cwd = getGitWorkingDirectory();
@@ -179,16 +168,12 @@ async function pushTag(tagName, force, logger) {
  * Verifies that a tag points to the expected commit
  */
 async function verifyTag(tagName, expectedSha, logger) {
-    if (logger["verbose"]) { // Access private verbose property for special formatting
-        core.info(`  → Verifying tag ${tagName} points to ${expectedSha}`);
-    }
+    logger.verboseInfo(`Verifying tag ${tagName} points to ${expectedSha}`);
     logger.debug(`Verifying tag ${tagName} points to ${expectedSha}`);
     try {
         const actualSha = await getCommitSha(`refs/tags/${tagName}`, logger);
         const matches = actualSha === expectedSha;
-        if (logger.verbose) {
-            core.info(`  → Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
-        }
+        logger.verboseInfo(`Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
         logger.debug(`Tag verification: ${matches ? "PASSED" : "FAILED"} (expected: ${expectedSha.substring(0, 7)}, actual: ${actualSha.substring(0, 7)})`);
         return matches;
     }

@@ -12,19 +12,19 @@ export async function run(): Promise<void> {
 		const inputs = getInputs();
 
 		// Create logger instance
-		const logger = new Logger(inputs.verbose);
+		const logger = new Logger(inputs.verbose, inputs.debugMode);
 		const { tag, refTag, prefix, updateMinor, ignorePrerelease } = inputs;
 
 		if (inputs.verbose) {
 			logger.info("🔍 Verbose logging enabled");
 		}
-		logger.debug("Action inputs:");
-		logger.debug(`  tag: ${inputs.tag}`);
-		logger.debug(`  refTag: ${inputs.refTag}`);
-		logger.debug(`  prefix: ${inputs.prefix}`);
-		logger.debug(`  updateMinor: ${inputs.updateMinor}`);
-		logger.debug(`  ignorePrerelease: ${inputs.ignorePrerelease}`);
-		logger.debug(`  verbose: ${inputs.verbose}`);
+		logger.verboseInfo("Action inputs:");
+		logger.verboseInfo(`  tag: ${inputs.tag}`);
+		logger.verboseInfo(`  refTag: ${inputs.refTag}`);
+		logger.verboseInfo(`  prefix: ${inputs.prefix}`);
+		logger.verboseInfo(`  updateMinor: ${inputs.updateMinor}`);
+		logger.verboseInfo(`  ignorePrerelease: ${inputs.ignorePrerelease}`);
+		logger.verboseInfo(`  verbose: ${inputs.verbose}`);
 
 		// Determine if we're using a separate refTag for commit resolution
 		// IMPORTANT: refTag is ONLY used to find the commit SHA - it is NEVER parsed for version information
@@ -32,7 +32,7 @@ export async function run(): Promise<void> {
 
 		if (usingSeparateRefTag) {
 			core.info(`Using refTag "${refTag}" to find commit SHA (different from version tag "${tag}")`);
-			logger.debug(`refTag will be used ONLY to resolve commit SHA (not parsed for version)`);
+			logger.verboseInfo(`refTag will be used ONLY to resolve commit SHA (not parsed for version)`);
 		}
 
 		// Extract version information from tag ONLY
@@ -91,7 +91,7 @@ export async function run(): Promise<void> {
 		}
 
 		// Set major tag output
-		core.setOutput("majorTag", majorTagName);
+		core.setOutput("major-tag", majorTagName);
 
 		// Track results for final summary
 		const results: Array<{ tag: string; created: boolean; updated: boolean }> = [{ tag: majorTagName, created: majorTagResult.created, updated: majorTagResult.updated }];
@@ -115,7 +115,7 @@ export async function run(): Promise<void> {
 			}
 
 			// Set minor tag output
-			core.setOutput("minorTag", minorTagName);
+			core.setOutput("minor-tag", minorTagName);
 			results.push({ tag: minorTagName, created: minorTagResult.created, updated: minorTagResult.updated });
 		}
 

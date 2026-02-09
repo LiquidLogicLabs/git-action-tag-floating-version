@@ -95,8 +95,8 @@ describe("E2E: floating tag updates", () => {
 		execGit(["tag", "-a", sourceTag, "-m", "src tag"], workDir);
 
 		process.env.INPUT_TAG = sourceTag;
-		process.env.INPUT_UPDATEMINOR = "true";
-		process.env.INPUT_IGNOREPRERELEASE = "false";
+		process.env["INPUT_UPDATE-MINOR"] = "true";
+		process.env["INPUT_IGNORE-PRERELEASE"] = "false";
 		process.env.INPUT_VERBOSE = "false";
 
 		await runAction();
@@ -120,8 +120,8 @@ describe("E2E: floating tag updates", () => {
 		execGit(["tag", "-a", sourceTag, "-m", "src tag"], workDir);
 
 		process.env.INPUT_TAG = sourceTag;
-		process.env.INPUT_UPDATEMINOR = "false";
-		process.env.INPUT_IGNOREPRERELEASE = "false";
+		process.env["INPUT_UPDATE-MINOR"] = "false";
+		process.env["INPUT_IGNORE-PRERELEASE"] = "false";
 		process.env.INPUT_VERBOSE = "false";
 
 		await runAction();

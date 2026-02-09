@@ -5,18 +5,18 @@ inputs:
   tag:
     description: 'The tag from which to extract version information (used to determine major/minor versions). Supports tags with or without "v" prefix (e.g., "v1.2.3" or "1.2.3")'
     required: true
-  refTag:
+  ref-tag:
     description: 'The tag/commit that floating tags should point to (can be tag name, refs/tags/v1.2.3, or SHA). If not provided, uses the value from tag'
     required: false
   prefix:
     description: 'Version prefix for tag names when creating floating tags'
     required: false
     default: 'v'
-  updateMinor:
+  update-minor:
     description: 'Whether to update minor version tags (v1.2)'
     required: false
     default: 'false'
-  ignorePrerelease:
+  ignore-prerelease:
     description: 'Whether to skip prerelease versions'
     required: false
     default: 'true'
@@ -25,10 +25,10 @@ inputs:
     required: false
     default: 'false'
 outputs:
-  majorTag:
+  major-tag:
     description: 'The major version tag that was created/updated (e.g., "v2")'
-  minorTag:
-    description: 'The minor version tag that was created/updated (e.g., "v2.3"), if updateMinor is true'
+  minor-tag:
+    description: 'The minor version tag that was created/updated (e.g., "v2.3"), if update-minor is true'
 runs:
   using: 'node20'
   main: 'dist/index.js'
