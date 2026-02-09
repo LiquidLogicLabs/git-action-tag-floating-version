@@ -8,7 +8,7 @@ A GitHub Action that creates or updates floating version tag aliases (major and 
 
 ## Features
 
-- ✅ **Simplified input design**: `tag` (required) for version extraction, optional `refTag` (defaults to `tag`) for commit reference
+- ✅ **Simplified input design**: `tag` (required) for version extraction, optional `ref-tag` (defaults to `tag`) for commit reference
 - ✅ **Auto v-prefix handling**: Automatically handles tags with or without 'v' prefix (v1.2.3 or 1.2.3)
 - ✅ **Floating tag support**: Creates/updates major (`v2`) and optional minor (`v2.3`) version tags
 - ✅ **Version parsing**: Extracts semantic version from tag with configurable prefix for output tags
@@ -25,7 +25,7 @@ A GitHub Action that creates or updates floating version tag aliases (major and 
   uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: 'v2.3.4'
-    updateMinor: true
+    update-minor: true
 ```
 
 This will:
@@ -41,7 +41,7 @@ This will:
   uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: '2.3.4'  # Works with or without 'v'
-    updateMinor: true
+    update-minor: true
 ```
 
 ### Different Reference Tag
@@ -53,8 +53,8 @@ Use a different commit/branch for floating tags than the version tag:
   uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: 'v2.3.4'  # Extract version from this
-    refTag: 'main'  # Point floating tags to this commit
-    updateMinor: true
+    ref-tag: 'main'  # Point floating tags to this commit
+    update-minor: true
 ```
 
 ### With Verbose Debug Logging
@@ -64,7 +64,7 @@ Use a different commit/branch for floating tags than the version tag:
   uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: 'v2.3.4'
-    updateMinor: true
+    update-minor: true
     verbose: true  # Enables detailed debug logging
 ```
 
@@ -93,7 +93,7 @@ jobs:
         uses: LiquidLogicLabs/git-action-tag-floating-version@v1
         with:
           tag: ${{ github.ref_name }}
-          updateMinor: true
+          update-minor: true
           verbose: true
 
       - name: Create Release
@@ -107,19 +107,23 @@ jobs:
 
 | Input | Description | Required | Default |
 | ------- | ------------- | ---------- | --------- |
-| `tag` | The tag from which to extract version information (used to determine major/minor versions). Supports tags with or without 'v' prefix (e.g., 'v1.2.3' or '1.2.3'). **Note**: This is parsed for version info only - not used to find the commit when `refTag` is provided. | Yes | - |
-| `refTag` | The tag/commit that floating tags should point to (can be tag name, refs/tags/v1.2.3, or SHA). If not provided, uses the value from `tag`. **Note**: This is used ONLY to resolve the commit SHA via `git rev-parse` - it is never parsed for version information. | No | Value of `tag` |
+| `tag` | The tag from which to extract version information (used to determine major/minor versions). Supports tags with or without 'v' prefix (e.g., 'v1.2.3' or '1.2.3'). **Note**: This is parsed for version info only - not used to find the commit when `ref-tag` is provided. | Yes | - |
+| `ref-tag` | The tag/commit that floating tags should point to (can be tag name, refs/tags/v1.2.3, or SHA). If not provided, uses the value from `tag`. **Note**: This is used ONLY to resolve the commit SHA via `git rev-parse` - it is never parsed for version information. | No | Value of `tag` |
 | `prefix` | Version prefix for tag names when creating floating tags | No | `v` |
-| `updateMinor` | Whether to update minor version tags (v1.2) | No | `false` |
-| `ignorePrerelease` | Whether to skip prerelease versions | No | `true` |
+| `update-minor` | Whether to update minor version tags (v1.2) | No | `false` |
+| `ignore-prerelease` | Whether to skip prerelease versions | No | `true` |
 | `verbose` | Enable verbose debug logging. Sets ACTIONS_STEP_DEBUG=true environment variable and enables detailed debug output | No | `false` |
 
 ## Outputs
 
 | Output | Description |
 | -------- | ------------- |
-| `majorTag` | The major version tag that was created/updated (e.g., 'v2') |
-| `minorTag` | The minor version tag that was created/updated (e.g., 'v2.3'), if updateMinor is true |
+| `major-tag` | The major version tag that was created/updated (e.g., 'v2') |
+| `minor-tag` | The minor version tag that was created/updated (e.g., 'v2.3'), if update-minor is true |
+
+## Permissions
+
+When the action creates or updates tags, the job must have `contents: write`. For read-only use (e.g. only reading version from an existing tag), `contents: read` is sufficient.
 
 ## Examples
 
@@ -129,7 +133,7 @@ jobs:
 - uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: 'v1.2.3'
-    # updateMinor defaults to false, so only v1 will be created/updated
+    # update-minor defaults to false, so only v1 will be created/updated
 ```
 
 ### Create Major and Minor Tags
@@ -138,7 +142,7 @@ jobs:
 - uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: 'v1.2.3'
-    updateMinor: true
+    update-minor: true
     # Creates/updates both v1 and v1.2
 ```
 
@@ -149,7 +153,7 @@ jobs:
   with:
     tag: 'release-1.2.3'
     prefix: 'release-'
-    updateMinor: true
+    update-minor: true
     # Creates/updates release-1 and release-1.2
 ```
 
@@ -161,7 +165,7 @@ By default, prerelease versions are ignored:
 - uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: 'v2.0.0-beta.1'
-    # Will fail because ignorePrerelease defaults to true
+    # Will fail because ignore-prerelease defaults to true
 ```
 
 To allow prerelease versions:
@@ -170,21 +174,21 @@ To allow prerelease versions:
 - uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: 'v2.0.0-beta.1'
-    ignorePrerelease: false
-    updateMinor: true
+    ignore-prerelease: false
+    update-minor: true
     # Creates/updates v2 and v2.0 even for prerelease
 ```
 
-**Important**: When `refTag` is provided separately, prerelease tags are automatically allowed for version extraction, even when `ignorePrerelease=true`. This is because `refTag` is used only to find the commit, while `tag` is used only for version extraction:
+**Important**: When `ref-tag` is provided separately, prerelease tags are automatically allowed for version extraction, even when `ignore-prerelease=true`. This is because `ref-tag` is used only to find the commit, while `tag` is used only for version extraction:
 
 ```yaml
 - uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: '3.23.0-d34fa4d2.ls4'  # Prerelease tag for version extraction
-    refTag: '3.23-d34fa4d2-ls4'  # Different tag/commit for floating tags to point to
-    updateMinor: true
-    ignorePrerelease: true  # Still works! refTag is separate, so prerelease tag is allowed
-    # Creates/updates v3 and v3.23 pointing to refTag commit
+    ref-tag: '3.23-d34fa4d2-ls4'  # Different tag/commit for floating tags to point to
+    update-minor: true
+    ignore-prerelease: true  # Still works! ref-tag is separate, so prerelease tag is allowed
+    # Creates/updates v3 and v3.23 pointing to ref-tag commit
 ```
 
 ### Point Floating Tags to a Different Commit
@@ -193,19 +197,19 @@ To allow prerelease versions:
 - uses: LiquidLogicLabs/git-action-tag-floating-version@v1
   with:
     tag: 'v1.2.3'  # Extract version from this tag
-    refTag: 'HEAD'  # But point floating tags to HEAD
-    updateMinor: true
+    ref-tag: 'HEAD'  # But point floating tags to HEAD
+    update-minor: true
     # v1 and v1.2 will point to HEAD, not v1.2.3
 ```
 
 ## How It Works
 
-1. **Version Extraction**: The action parses the `tag` input to extract semantic version components (major, minor, patch). **Note**: `refTag` is never parsed for version information - it is only used to find the commit.
-2. **Commit Resolution**: Resolves the commit SHA from `refTag` (or `tag` if `refTag` is not provided) using `git rev-parse`. This is the commit that floating tags will point to.
-3. **Prerelease Handling**: If `refTag` is provided separately (different from `tag`), prerelease tags are allowed for version extraction even when `ignorePrerelease=true`, since `refTag` is used only to find the commit, not for version parsing.
+1. **Version Extraction**: The action parses the `tag` input to extract semantic version components (major, minor, patch). **Note**: `ref-tag` is never parsed for version information - it is only used to find the commit.
+2. **Commit Resolution**: Resolves the commit SHA from `ref-tag` (or `tag` if `ref-tag` is not provided) using `git rev-parse`. This is the commit that floating tags will point to.
+3. **Prerelease Handling**: If `ref-tag` is provided separately (different from `tag`), prerelease tags are allowed for version extraction even when `ignore-prerelease=true`, since `ref-tag` is used only to find the commit, not for version parsing.
 4. **Tag Creation/Update**: Creates or updates floating tags:
    - Major tag: `{prefix}{major}` (e.g., `v2`)
-   - Minor tag: `{prefix}{major}.{minor}` (e.g., `v2.3`) if `updateMinor` is true
+   - Minor tag: `{prefix}{major}.{minor}` (e.g., `v2.3`) if `update-minor` is true
 5. **Tag Push**: Pushes the created/updated tags to the remote repository
 
 ## Version Format Support
