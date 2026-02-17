@@ -14,7 +14,7 @@ on:
 # Note: When called by release workflow, CI will run on the tag ref
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow || 'CI' }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref || github.sha }}
   cancel-in-progress: true
 
 permissions:

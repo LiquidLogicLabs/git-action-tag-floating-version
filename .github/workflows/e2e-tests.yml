@@ -4,13 +4,16 @@ on:
   workflow_call:  # Called by release workflow
   workflow_dispatch:  # Manual trigger
 
+concurrency:
+  group: ${{ github.workflow || 'E2E Tests' }}-${{ github.ref || github.sha }}
+  cancel-in-progress: true
+
 permissions:
   contents: write  # Action pushes floating tags (v1, v1.0, etc.) to remote
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # Run action from committed dist first (no build). Ensures E2E fails if dist is unbundled.
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,24 +28,48 @@ jobs:
           git init --bare "$REMOTE_PATH"
           git remote set-url origin "$REMOTE_PATH"
 
-      - name: Smoke test - action runs from committed dist
+      - name: Smoke test - action runs from committed dist (v1.0.0)
         uses: ./
         with:
           tag: v1.0.0
           prefix: e2e-
           verbose: 'false'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Run action with v2.0.0 and verify outputs
+        id: floating-v2
+        uses: ./
         with:
-          node-version: "20"
-          cache: "npm"
+          tag: v2.0.0
+          prefix: e2e-
+          update-minor: 'true'
+          verbose: 'false'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Verify floating-v2 outputs and tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "major-tag: ${{ steps.floating-v2.outputs.major-tag }}"
+          echo "minor-tag: ${{ steps.floating-v2.outputs.minor-tag }}"
+          [ "${{ steps.floating-v2.outputs.major-tag }}" = "e2e-2" ]
+          [ "${{ steps.floating-v2.outputs.minor-tag }}" = "e2e-2.0" ]
+          git ls-remote origin refs/tags/e2e-2 | grep -q .
+          git ls-remote origin refs/tags/e2e-2.0 | grep -q .
 
-      - name: Build action
-        run: npm run build
+      - name: Run action with updateMinor false (major only)
+        id: floating-major-only
+        uses: ./
+        with:
+          tag: v2.0.0
+          prefix: e2e-
+          update-minor: 'false'
+          verbose: 'false'
 
-      - name: Run e2e tests
-        run: npm run test:e2e
+      - name: Verify major-only outputs and tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "major-tag: ${{ steps.floating-major-only.outputs.major-tag }}"
+          echo "minor-tag: ${{ steps.floating-major-only.outputs.minor-tag }}"
+          [ "${{ steps.floating-major-only.outputs.major-tag }}" = "e2e-2" ]
+          [ -z "${{ steps.floating-major-only.outputs.minor-tag }}" ]
+          git ls-remote origin refs/tags/e2e-2 | grep -q .
