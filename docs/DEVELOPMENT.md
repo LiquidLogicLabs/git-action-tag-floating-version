@@ -238,7 +238,7 @@ npm run test:coverage # Generate coverage report
 
 ## Releasing
 
-This project uses [`standard-version`](https://github.com/conventional-changelog/standard-version) for automated release tag creation with commit summaries.
+This project uses npm lifecycle hooks (`preversion`/`version`/`postversion`) with `conventional-changelog-cli` for versioning and changelog generation.
 
 ### Pre-Release Checklist
 
@@ -280,15 +280,13 @@ npm run release:major
 
 ### What Happens
 
-The release command automatically:
-1. Bumps the version in `package.json` (patch/minor/major)
-2. Analyzes commits since the last tag to generate a commit summary
-3. Creates a git commit with message like "chore: release v1.0.1"
-4. Creates a git tag with a message that includes:
-   - Version number
-   - Summary of commits since last release
-   - Formatted changelog-style content
-5. Pushes the tag and commit to trigger the GitHub Actions release workflow
+The release command triggers `npm version` which automatically:
+1. Runs tests via the `preversion` hook
+2. Bumps the version in `package.json` (patch/minor/major)
+3. Updates CHANGELOG.md from conventional commits via the `version` hook
+4. Creates a git commit with message like "chore(release): 1.0.1"
+5. Creates a git tag (e.g., `v1.0.1`)
+6. Pushes the tag and commit to trigger the GitHub Actions release workflow via the `postversion` hook
 
 The release workflow then:
 - Runs lint and tests as a safety check
@@ -296,24 +294,6 @@ The release workflow then:
 - Generates release notes from PRs/commits
 - Creates a GitHub release
 - Creates/updates floating version tags
-
-### Tag Messages
-
-Release tag messages automatically include commit summaries formatted like:
-```
-v1.0.1
-
-### Features
-* Add new feature
-
-### Bug Fixes
-* Fix critical bug
-
-### Chores
-* Update dependencies
-```
-
-This works with conventional commits (recommended) or regular commit messages.
 
 ## Troubleshooting
 
