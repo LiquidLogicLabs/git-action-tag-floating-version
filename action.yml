@@ -30,7 +30,7 @@ outputs:
   minor-tag:
     description: 'The minor version tag that was created/updated (e.g., "v2.3"), if update-minor is true'
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
 branding:
   icon: 'tag'
