@@ -1,3 +1,45 @@
+## [2.0.4](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/compare/v2.0.3...v2.0.4) (2026-09-03)
+
+
+* feat!: default update-minor to true, and make the docs match the manifest ([011fa87](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/commit/011fa876b12f3eefe9fab3d2acba80af9f7c548b))
+
+
+### Bug Fixes
+
+* **lint:** quote eslint glob so all of src/ is linted ([ff2db80](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/commit/ff2db80e473941fb6da16ddebd18e9b17961cbee))
+
+
+### BREAKING CHANGES
+
+* update-minor now defaults to true, so the minor floating tag
+(vX.Y) is created and updated unless a caller opts out with update-minor: false.
+
+The old default was the cause of a defect in every consuming repository: all
+sixteen wanted minor tags, none set the input, so vX.Y stayed frozen at an old
+release — six releases back in one case, and two repos had no vX.Y at all —
+while each release summary asserted the tag had just been created. The README
+had it right all along: its input table said the default was false, but every
+one of its examples passed update-minor: true.
+
+The docs were wrong in a way that could not work, too: all thirteen README
+examples pinned @v1, and v1's action.yml has no update-minor input at all, so
+every example passing that input was broken as written. Repinned to @v3.
+
+Adds a manifest test rather than trusting prose, since the runner (not
+@actions/core) applies action.yml defaults and no unit test could observe them:
+it pins the update-minor default, asserts the README input table agrees with
+action.yml for every documented default, and rejects an example pinned below the
+current major. Each guard was checked by planting its violation and confirming
+it fails.
+
+js-yaml was already present transitively and is now declared, rather than
+parsing the manifest by hand.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_019MZbNnkmphxiskyz6g2eyi
+
+
+
 ## [2.0.3](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/compare/v2.0.2...v2.0.3) (2026-07-05)
 
 
