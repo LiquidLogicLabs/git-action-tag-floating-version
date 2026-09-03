@@ -1,5 +1,5 @@
 name: 'Git Floating Version Tags'
-description: 'Creates or updates floating version tag aliases (major and minor) pointing to a reference commit, extracting version information from a tag.'
+description: 'Creates or updates floating version tag aliases (major, and minor when update-minor is enabled) pointing to a reference commit, extracting version information from a tag.'
 author: 'LiquidLogicLabs'
 inputs:
   tag:
@@ -13,9 +13,12 @@ inputs:
     required: false
     default: 'v'
   update-minor:
-    description: 'Whether to update minor version tags (v1.2)'
+    description: 'Whether to update minor version tags (v1.2) alongside the major tag'
     required: false
-    default: 'false'
+    # Defaulted to false until v3. Every consuming repository wanted minor tags and none
+    # set this, so vX.Y sat frozen at an old release everywhere while release summaries
+    # claimed it had been updated. The default now matches what the README always showed.
+    default: 'true'
   ignore-prerelease:
     description: 'Whether to skip prerelease versions'
     required: false
