@@ -22,7 +22,7 @@ A GitHub Action that creates or updates floating version tag aliases (major, and
 
 ```yaml
 - name: Update Floating Tags
-  uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+  uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v2.3.4'
     update-minor: true
@@ -38,7 +38,7 @@ This will:
 
 ```yaml
 - name: Update Floating Tags
-  uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+  uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: '2.3.4'  # Works with or without 'v'
     update-minor: true
@@ -50,7 +50,7 @@ Use a different commit/branch for floating tags than the version tag:
 
 ```yaml
 - name: Update Floating Tags
-  uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+  uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v2.3.4'  # Extract version from this
     ref-tag: 'main'  # Point floating tags to this commit
@@ -61,7 +61,7 @@ Use a different commit/branch for floating tags than the version tag:
 
 ```yaml
 - name: Update Floating Tags
-  uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+  uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v2.3.4'
     update-minor: true
@@ -90,7 +90,7 @@ jobs:
           fetch-depth: 0
 
       - name: Update Floating Tags
-        uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+        uses: LiquidLogicLabs/git-action-tag-floating-version@v2
         with:
           tag: ${{ github.ref_name }}
           update-minor: true
@@ -130,7 +130,7 @@ When the action creates or updates tags, the job must have `contents: write`. Fo
 ### Create Major Tag Only
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+- uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v1.2.3'
     # update-minor defaults to true, so opt out explicitly for a major tag only
@@ -140,7 +140,7 @@ When the action creates or updates tags, the job must have `contents: write`. Fo
 ### Create Major and Minor Tags
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+- uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v1.2.3'
     update-minor: true
@@ -150,7 +150,7 @@ When the action creates or updates tags, the job must have `contents: write`. Fo
 ### Custom Prefix
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+- uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'release-1.2.3'
     prefix: 'release-'
@@ -163,7 +163,7 @@ When the action creates or updates tags, the job must have `contents: write`. Fo
 By default, prerelease versions are ignored:
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+- uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v2.0.0-beta.1'
     # Will fail because ignore-prerelease defaults to true
@@ -172,7 +172,7 @@ By default, prerelease versions are ignored:
 To allow prerelease versions:
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+- uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v2.0.0-beta.1'
     ignore-prerelease: false
@@ -183,7 +183,7 @@ To allow prerelease versions:
 **Important**: When `ref-tag` is provided separately, prerelease tags are automatically allowed for version extraction, even when `ignore-prerelease=true`. This is because `ref-tag` is used only to find the commit, while `tag` is used only for version extraction:
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+- uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: '3.23.0-d34fa4d2.ls4'  # Prerelease tag for version extraction
     ref-tag: '3.23-d34fa4d2-ls4'  # Different tag/commit for floating tags to point to
@@ -195,7 +195,7 @@ To allow prerelease versions:
 ### Point Floating Tags to a Different Commit
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+- uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v1.2.3'  # Extract version from this tag
     ref-tag: 'HEAD'  # But point floating tags to HEAD
@@ -241,7 +241,7 @@ The action provides informative logging at each step:
 Enable verbose logging by setting `verbose: true`:
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-floating-version@v3
+- uses: LiquidLogicLabs/git-action-tag-floating-version@v2
   with:
     tag: 'v1.2.3'
     verbose: true
