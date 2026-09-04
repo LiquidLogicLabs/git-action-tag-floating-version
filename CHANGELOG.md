@@ -1,3 +1,12 @@
+## [2.0.5](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/compare/v2.0.4...v2.0.5) (2026-09-04)
+
+
+### Bug Fixes
+
+* reject tag names git would read as an option or a refspec ([b6b00c9](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/commit/b6b00c96b2c9a146f7ad2bc50cc8f249197309bf))
+
+
+
 ## [2.0.4](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/compare/v2.0.3...v2.0.4) (2026-09-03)
 
 
