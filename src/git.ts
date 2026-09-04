@@ -18,7 +18,47 @@ function getGitWorkingDirectory(): string {
 /**
  * Gets the commit SHA for a given reference (tag, branch, or SHA)
  */
+/**
+ * Reject a value git would read as an option rather than as data.
+ *
+ * An argv array stops the SHELL interpreting a value; it does nothing about git's own
+ * option parser, which reads a leading "-" as an option wherever it appears. Some of those
+ * options execute commands. Verified against real git:
+ *
+ *   git push origin --delete '--receive-pack=touch /tmp/PWNED' v9  ->  the file is created
+ *
+ * (The trailing real ref is required; without it git aborts before connecting.)
+ */
+export function assertNotOptionLike(value: string, label: string): void {
+	if (value.startsWith("-")) {
+		throw new Error(
+			`Refusing to pass a ${label} beginning with "-" to git: ${JSON.stringify(value)}. ` +
+				"git would read it as an option, and options such as --upload-pack/--receive-pack execute commands."
+		);
+	}
+}
+
+/**
+ * Reject a tag name git would read as a REFSPEC rather than as a ref.
+ *
+ * Not covered by the option check. "+" is the force prefix and ":" separates source from
+ * destination, so `git push origin '+main'` force-updates the remote BRANCH — verified
+ * against a real remote. `git check-ref-format` accepts refs/tags/+main and `git tag`
+ * creates it, so the value otherwise passes every check.
+ *
+ * Reachable here through the `prefix` input, which becomes part of the tag name.
+ */
+export function assertNotRefspecLike(value: string, label: string): void {
+	if (value.startsWith("+") || value.includes(":")) {
+		throw new Error(
+			`Refusing to pass a ${label} that git would read as a refspec: ${JSON.stringify(value)}. ` +
+				'"+" forces and ":" separates source from destination, so this could update a branch instead of a tag.'
+		);
+	}
+}
+
 export async function getCommitSha(ref: string, logger: Logger): Promise<string> {
+	assertNotOptionLike(ref, "ref");
 	core.info(`Resolving commit SHA for reference: ${ref}`);
 
 	let output = "";
@@ -74,6 +114,9 @@ export async function tagExists(tagName: string, logger: Logger): Promise<boolea
  * Creates or updates a git tag
  */
 export async function createOrUpdateTag(tagName: string, commitSha: string, logger: Logger): Promise<TagOperationResult> {
+	assertNotOptionLike(tagName, "tag name");
+	assertNotRefspecLike(tagName, "tag name");
+	assertNotOptionLike(commitSha, "commit SHA");
 	const exists = await tagExists(tagName, logger);
 
 	if (exists) {
@@ -117,10 +160,15 @@ export async function createOrUpdateTag(tagName: string, commitSha: string, logg
  * Pushes a tag to the remote repository
  */
 export async function pushTag(tagName: string, force: boolean, logger: Logger): Promise<void> {
+	assertNotOptionLike(tagName, "tag name");
+	assertNotRefspecLike(tagName, "tag name");
+
 	const action = force ? "force pushing" : "pushing";
 	core.info(`${action} tag ${tagName} to remote`);
 
-	const args = ["push", "origin", tagName];
+	// Fully qualified on both sides so a tag name can never be parsed as a refspec, even if
+	// the guard above is bypassed later. Defence in depth, not a replacement for it.
+	const args = ["push", "origin", `refs/tags/${tagName}:refs/tags/${tagName}`];
 	if (force) {
 		args.push("--force");
 	}
