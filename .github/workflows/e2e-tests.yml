@@ -9,15 +9,26 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write  # Action pushes floating tags (v1, v1.0, etc.) to remote
+  # contents: read, not write. The job repoints `origin` at a bare repository it creates
+  # under RUNNER_TEMP, so every tag this workflow pushes goes there -- nothing reaches
+  # this repository, and GITHUB_TOKEN is never used for it.
+  #
+  # It also cannot be `write` any more: release.yml now runs on a `contents: read` floor
+  # (R8), and a called reusable workflow may not request more than its caller was granted
+  # -- leaving `write` here makes the Release run fail at startup in 1s with no logs,
+  # which is what happened to git-action-release v2.0.5.
+  contents: read
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          # This job pushes only to the bare repository it creates under RUNNER_TEMP,
+          # which needs no credential.
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Configure local remote for tag push
@@ -29,7 +40,7 @@ jobs:
           git remote set-url origin "$REMOTE_PATH"
 
       - name: Smoke test - action runs from committed dist (v1.0.0)
-        uses: ./
+        uses: ./  # zizmor: ignore[self-repository] — local ACTION reference under test, not a reusable-workflow call; $/ does not apply
         with:
           tag: v1.0.0
           prefix: e2e-
@@ -37,7 +48,7 @@ jobs:
 
       - name: Run action with v2.0.0 and verify outputs
         id: floating-v2
-        uses: ./
+        uses: ./  # zizmor: ignore[self-repository] — local ACTION reference under test, not a reusable-workflow call; $/ does not apply
         with:
           tag: v2.0.0
           prefix: e2e-
@@ -46,18 +57,21 @@ jobs:
 
       - name: Verify floating-v2 outputs and tags
         shell: bash
+        env:
+          Z_FLOATING_V2_OUTPUTS_MAJOR_TAG: ${{ steps.floating-v2.outputs.major-tag }}
+          Z_FLOATING_V2_OUTPUTS_MINOR_TAG: ${{ steps.floating-v2.outputs.minor-tag }}
         run: |
           set -euo pipefail
-          echo "major-tag: ${{ steps.floating-v2.outputs.major-tag }}"
-          echo "minor-tag: ${{ steps.floating-v2.outputs.minor-tag }}"
-          [ "${{ steps.floating-v2.outputs.major-tag }}" = "e2e-2" ]
-          [ "${{ steps.floating-v2.outputs.minor-tag }}" = "e2e-2.0" ]
+          echo "major-tag: ${Z_FLOATING_V2_OUTPUTS_MAJOR_TAG}"
+          echo "minor-tag: ${Z_FLOATING_V2_OUTPUTS_MINOR_TAG}"
+          [ "${Z_FLOATING_V2_OUTPUTS_MAJOR_TAG}" = "e2e-2" ]
+          [ "${Z_FLOATING_V2_OUTPUTS_MINOR_TAG}" = "e2e-2.0" ]
           git ls-remote origin refs/tags/e2e-2 | grep -q .
           git ls-remote origin refs/tags/e2e-2.0 | grep -q .
 
       - name: Run action with updateMinor false (major only)
         id: floating-major-only
-        uses: ./
+        uses: ./  # zizmor: ignore[self-repository] — local ACTION reference under test, not a reusable-workflow call; $/ does not apply
         with:
           tag: v2.0.0
           prefix: e2e-
@@ -66,10 +80,13 @@ jobs:
 
       - name: Verify major-only outputs and tags
         shell: bash
+        env:
+          Z_FLOATING_MAJOR_ONLY_OUTPUTS_MAJOR_TAG: ${{ steps.floating-major-only.outputs.major-tag }}
+          Z_FLOATING_MAJOR_ONLY_OUTPUTS_MINOR_TAG: ${{ steps.floating-major-only.outputs.minor-tag }}
         run: |
           set -euo pipefail
-          echo "major-tag: ${{ steps.floating-major-only.outputs.major-tag }}"
-          echo "minor-tag: ${{ steps.floating-major-only.outputs.minor-tag }}"
-          [ "${{ steps.floating-major-only.outputs.major-tag }}" = "e2e-2" ]
-          [ -z "${{ steps.floating-major-only.outputs.minor-tag }}" ]
+          echo "major-tag: ${Z_FLOATING_MAJOR_ONLY_OUTPUTS_MAJOR_TAG}"
+          echo "minor-tag: ${Z_FLOATING_MAJOR_ONLY_OUTPUTS_MINOR_TAG}"
+          [ "${Z_FLOATING_MAJOR_ONLY_OUTPUTS_MAJOR_TAG}" = "e2e-2" ]
+          [ -z "${Z_FLOATING_MAJOR_ONLY_OUTPUTS_MINOR_TAG}" ]
           git ls-remote origin refs/tags/e2e-2 | grep -q .
