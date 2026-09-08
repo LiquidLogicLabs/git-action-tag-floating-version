@@ -1,4 +1,4 @@
-# Git Floating Version Tags Action
+# Git Floating Version Tags
 
 [![CI](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/actions/workflows/ci.yml/badge.svg)](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
