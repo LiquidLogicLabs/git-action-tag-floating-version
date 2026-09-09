@@ -1,3 +1,14 @@
+## [2.0.7](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/compare/v2.0.6...v2.0.7) (2026-09-09)
+
+
+### Bug Fixes
+
+* **release-notes:** categorise revert commits under Maintenance ([8292848](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/commit/8292848b00c8cf9a3198598bd538aeb9c6449992))
+* **release-notes:** categorise the changelog by conventional-commit type ([062b934](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/commit/062b934daf9302cdd748713930dab6aeb75e7acf))
+* **release-notes:** drop the dead PR_LIST placeholder ([8d1fb14](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/commit/8d1fb144e3bc4466397da034eeb1890b45035ed3))
+
+
+
 ## [2.0.6](https://github.com/LiquidLogicLabs/git-action-tag-floating-version/compare/v2.0.5...v2.0.6) (2026-09-04)
 
 
