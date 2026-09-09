@@ -97,7 +97,7 @@ jobs:
           verbose: true
 
       - name: Create Release
-        uses: LiquidLogicLabs/git-action-release@v1
+        uses: LiquidLogicLabs/git-action-release@v2
         with:
           tag: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
