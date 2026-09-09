@@ -1,5 +1,5 @@
 name: 'Git Floating Version Tags'
-description: 'Creates or updates floating version tag aliases (major, and minor when update-minor is enabled) pointing to a reference commit, extracting version information from a tag.'
+description: 'Create or update floating version tags (v1, v1.2) that track the latest release, using plain git so it works on any host.'
 author: 'LiquidLogicLabs'
 inputs:
   tag:
